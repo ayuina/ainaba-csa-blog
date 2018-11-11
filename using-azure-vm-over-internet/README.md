@@ -1,37 +1,18 @@
-## Welcome to GitHub Pages
+## インターネット環境から Azure 仮想マシンにリモートデスクトップ接続できない場合の回避策
 
-You can use the [editor on GitHub](https://github.com/ayuina/ainaba-csa-blog/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
+Azure ポータルから仮想マシンを作成すると、同時に Public IP アドレスが付与されます。
+Windows 仮想マシンの場合は NSG で RDP(3389) を受信許可していればリモートデスクトップ接続ができるわけです。
+しかしながら企業の一般的なネットワーク環境ではそもそも HTTP/HTTPS が使えることは稀だと思います。
+その結果、仮想マシンが出来たはいいけど何も操作できずに課金だけが発生する Windows の出来上がりです。
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+![これは困った](./cannot-access-rdp.png)
 
-### Markdown
+このようなケースでは ExpressRoute なり Internet VPN なりを使用して仮想ネットワークと自身のネットワーク環境を地続きにし、
+Private IP アドレスを使用して接続するのが通常のやり方になります。
+ただまあ、時間もかかるし面倒だし余計にお金もかかるわけです。
+ちょっと検証用途に使いたいとか、ちょっとお勉強に使いたいとか、そういったシチュエーションには不向きです。
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+回避策をいろいろ調べていたのですが、残念ながら Windows らしく GUI を操作するには至っていません。
+が、とりあえずここまで調べて内容を少し紹介したいと思います。
 
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
-```
-
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/ayuina/ainaba-csa-blog/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+###
