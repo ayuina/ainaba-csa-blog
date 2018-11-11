@@ -19,7 +19,7 @@ Private IP アドレスを使用して接続するのが通常のやり方にな
 
 ### スクリプトをバッチ的に実行する
 
-！[概要](./overview-runpowershellscript.png)
+![概要](./overview-runpowershellscript.png)
 
 Azure ポータルで仮想マシンのメニューを見ていくと **実行コマンド** という素敵なメニューがありますね。
 この中の RunPowerShellScript を選ぶと、仮想マシン内部で PowerShell スクリプトを実行することができます。
