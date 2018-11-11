@@ -1,6 +1,6 @@
 ## 目次
 
-
+[初投稿](./using-azure-vm-over-internet)
 
 ## 以前の Blog について
 
