@@ -25,7 +25,7 @@ Azure ポータルで仮想マシンのメニューを見ていくと **実行�
 ![コマンド実行](./run-powershell-script.png)
 
 詳しい使い方は
-(正式なドキュメント)[https://docs.microsoft.com/ja-jp/azure/virtual-machines/windows/run-command]
+[正式なドキュメント](https://docs.microsoft.com/ja-jp/azure/virtual-machines/windows/run-command)
 に譲りますが、ここでは例として IIS のセットアップ方法を紹介しておきます。
 
 PowerShell スクリプトの入力画面に以下のスクリプトを入力して実行するだけです。
