@@ -21,6 +21,9 @@ Private IP アドレスを使用して接続するのが通常のやり方にな
 
 Azure ポータルで仮想マシンのメニューを見ていくと **実行コマンド** という素敵なメニューがありますね。
 この中の RunPowerShellScript を選ぶと、仮想マシン内部で PowerShell スクリプトを実行することができます。
+
+![コマンド実行](./run-powershell-script.png)
+
 詳しい使い方は
 (正式なドキュメント)[https://docs.microsoft.com/ja-jp/azure/virtual-machines/windows/run-command]
 に譲りますが、ここでは例として IIS のセットアップ方法を紹介しておきます。
