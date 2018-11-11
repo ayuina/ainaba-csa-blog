@@ -1,6 +1,7 @@
 ## 目次
 
-[初投稿](./using-azure-vm-over-internet)
+- [インターネット環境から Azure 仮想マシンにリモートデスクトップ接続できない場合の回避策](./using-azure-vm-over-internet)
+- 
 
 ## 以前の Blog について
 
