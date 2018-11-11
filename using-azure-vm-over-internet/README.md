@@ -33,7 +33,7 @@ PS > Add-WindowsFeature -Name web-server
 
 ```
 
-!(IISのセットアップ)[setup-iis.png]
+![IISのセットアップ](./setup-iis.png)
 
 ただここで問題となるのは **インタラクティブシェル** として使えるわけではないということです。
 入力した一連の PowerShell コードが VM 拡張機能を使用して内部に送り込まれ、実行結果をまとめてポータルに返してきます。
