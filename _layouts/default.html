@@ -1,0 +1,44 @@
+<!doctype html>
+<!---
+  this default.html is based on 
+    https://github.com/pages-themes/dinky
+--->
+
+<html lang="{{ site.lang | default: "en-US" }}">
+
+<head>
+    <meta charset="utf-8">
+</head>
+
+<body>
+
+    <div class="wrapper">
+
+        <!-- ヘッド -->
+        <header>
+            <h1 class="header">{{ site.title | default: site.github.repository_name }}</h1>
+            <p class="header">{{ site.description | default: site.github.project_tagline }}</p>
+        </header>
+
+        <ul>
+            <li class="sidemenu"><a href="{{ '/' | relative_url }}">トップページ</a></li>
+            <li class="sidemenu"><a href="{{ '/sub1' | relative_url }}">サブアイテム #1</a></li>
+            <li class="sidemenu"><a href="{{ '/sub2' | relative_url }}">サブアイテム #2</a></li>
+            <li class="sidemenu"><a href="{{ '/sub3' | relative_url }}">サブアイテム #3</a></li>
+        </ul>
+        </sidemenu>
+
+        <!--  Markdown の本体 -->
+        <section>
+            {{ content }}
+        </section>
+
+        <footer>
+            <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+            <p><a class="buttons github" href="{{ site.github.repository_url }}">View On GitHub</a></p>
+        </footer>
+    </div>
+
+</body>
+
+</html>
