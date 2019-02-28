@@ -31,5 +31,3 @@ Blob Web
 SSLが使えないのはダサい
 CDN カスタムドメイン
 
-<script type="text/javascript">
-</script>
