@@ -9,21 +9,7 @@
 <head>
     <meta charset="utf-8">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/3.0.1/github-markdown.min.css">
-    <style>
-        .markdown-body {
-            box-sizing: border-box;
-            min-width: 200px;
-            max-width: 980px;
-            margin: 0 auto;
-            padding: 45px;
-        }
-
-        @media (max-width: 767px) {
-            .markdown-body {
-                padding: 15px;
-            }
-        }
-    </style>
+    <title> {{ page.title }}</title>
 </head>
 
 <body>
@@ -35,14 +21,6 @@
             <h1 class="header">{{ site.title | default: site.github.repository_name }}</h1>
             <p class="header">{{ site.description | default: site.github.project_tagline }}</p>
         </header>
-
-        <!-- <ul>
-            <li class="sidemenu"><a href="{{ '/' | relative_url }}">トップページ</a></li>
-            <li class="sidemenu"><a href="{{ '/sub1' | relative_url }}">サブアイテム #1</a></li>
-            <li class="sidemenu"><a href="{{ '/sub2' | relative_url }}">サブアイテム #2</a></li>
-            <li class="sidemenu"><a href="{{ '/sub3' | relative_url }}">サブアイテム #3</a></li>
-        </ul> -->
-        </sidemenu>
 
         <!--  Markdown の本体 -->
         <section>
