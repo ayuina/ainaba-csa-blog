@@ -17,14 +17,21 @@ title: log-analysis-on-premise-computer
 ## アーキテクチャ
 
 Azure Monitor は各種ノード（PC やサーバー）にインストールされたエージェントがログを収集、インターネット経由で Azure にログを送信します。
-つまり理論上は以下の 2 点がクリアできれば任意の環境を対象としたログ解析が可能です。
-- エージェントが動作するプラットフォームであること
-- インターネットへの接続経路があること
+つまり理論上は以下の 2 点がクリアできれば任意の環境を対象としたログの収集が可能です。
+
+- エージェントが [動作するプラットフォーム](https://docs.microsoft.com/ja-jp/azure/azure-monitor/platform/log-analytics-agent#supported-windows-operating-systems) であること
+- インターネットへの HTTPS 接続経路（Port 443）があること
+
 また各ノードが直接送信せずとも、System Cener Operations Manager が既に導入されている環境であれば、
 SCOM を中継地点としてログをかき集めることも可能です。
+ログがデータベースに格納されれば、あとはクエリをかけたり、可視化したり、といったような形で分析をすればよいだけです。
 
 ![Log Analyticsのアーキテクチャ](./images/architecture-of-log-analytics.png)
 
+本記事ではオンプレミス Windows 環境を対象としたログの収集・解析の一連の流れを紹介したいと思います。
+（単に私が Windows PC しか持ってないからという話でもあります）
+
+## エージェントのインストール
 
 ## Microsoft Monitoring Agent のインストール
 
