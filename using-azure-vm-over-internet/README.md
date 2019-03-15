@@ -1,3 +1,8 @@
+---
+layout: default
+title: using-azure-vm-over-internet
+---
+
 ## インターネット環境から Azure 仮想マシンにリモートデスクトップ接続できない場合の回避策
 
 Azure ポータルから仮想マシンを作成すると、同時に Public IP アドレスが付与されます。
