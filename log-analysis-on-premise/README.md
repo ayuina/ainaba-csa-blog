@@ -51,7 +51,32 @@ Windows 上にインストールを行うとコントロールパネルから Mi
 エージェントは Windows サービスとして常駐し、起動中には Log Analytics ワークスペースに対して定期的に通信を行います。 
 これは Heartbeat と呼ばれ、この通信が受信できているということは、少なくともそのマシンが起動してログが収集できていることが確認できます。
 下記がその Heartbeat を特に加工せずクエリした例になります。
+
 ![ポータルでログをクエリ](./images/la-query-heartbeat.png)
 
+Log Analytics ワークスペースでは
+[Kusto](https://docs.microsoft.com/ja-jp/azure/azure-monitor/log-query/query-language)
+というクエリ言語を使用して解析を行うのですが、言語そのものの詳細は公式ドキュメントに譲るとして
+以降ではいくつかのサンプルを紹介していきたいと思います。
 
+### あまり使われていないマシンを探そう
 
+まずは先ほどの Heartbeat を分析してみましょう。
+
+```
+Heartbeat
+| where TimeGenerated > ago(7d)
+| summarize count() by bin(TimeGenerated, 1h), Computer
+| render barchart 
+```
+
+このクエリでは以下のような処理を行っています。
+
+- ハートビートの中から
+- タイムスタンプが 7 日前の日時よりも大きいもの（＝過去 1 週間以内のログ）を抽出し
+- コンピューター単位 および 1 時間単位でその件数を数え
+- さらにそれを棒グラフで表示する
+
+実行結果は下記のようになります。
+
+![マシンの使用状況](./images/la-query-usage.png)
