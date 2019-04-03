@@ -90,5 +90,64 @@ Heartbeat
 
 もう 2 台、ところどころに現れる紫や紺のプロットは私と妻の自宅においてある PC です。
 日中はお互い仕事をしており会社のマシンを使用している時間帯ですので、帰宅してから夜ちょこっと触るくらいしかできません。
-使用状況としてはこんなものでしょうか、ちょっともったいないですね。
+使用状況としてはこんなものでしょうか。
+ちょっともったいないので、どちらか 1 台はリタイアしてもいいのかもしれません。
+ただ使用時間がほぼ同じタイミングなので、それも難しいでしょか・・・。
+
+### なんかパソコン調子が悪いらしい
+
+家族からは「最近パソコンの調子が悪い（からなんとかしろ）」というクレームを良くいただきます。
+調子悪いって具体的になんだよ、と聞いてもまともな回答は帰ってきません。
+困ったものです。アプリでもクラッシュしているのでしょうか？
+
+Windows ではアプリケーションが異常終了した場合には、下記のようにイベントログが記録されているはずです。
+
+![アプリエラー](./images/eventvwr-app-crash.png)
+
+ではこのログを Azure Monitor で探してみましょう。
+今度は Heartbeat ではなく Event を使用して、まずは目的のログだけを抽出してリストで出してみます。
+
+```
+Event 
+| where TimeGenerated > ago(7d)
+| where EventLog == "Application" and Source == "Application Error"
+```
+
+- Event の中から
+- 過去一週間ものを抽出し
+- さらにイベントログが Application でソースが Application Error のもの
+
+![アプリエラー](./images/la-query-app-crash.png)
+
+詳細データは XML か文章の中から抽出しないとダメそうですね。
+これは若干気合が必要そうです。
+
+```
+Event 
+| where TimeGenerated > ago(3d) 
+| where EventLog == "Application" and Source == "Application Error"
+| project
+    TimeGenerated , Computer ,
+    application = parse_xml(EventData).DataItem.EventData.Data[0],
+    exception = strcat("0x", parse_xml(EventData).DataItem.EventData.Data[6])
+```
+- Event の中から
+- 過去 3 日以内のものを抽出し
+- さらにイベントログが Application でソースが Application Error のものを抽出し
+- XML の文字列データをパースしたものから要素を抽出して射影する
+
+という気合の結果は以下のようになります。
+
+![アプリエラー](./images/la-query-app-crash-which-and-why.png)
+
+何種類かのアプリケーションがエラーコード 0xc0000409 で落ちてますね。
+これは スタック バッファ オーバーラン でしょうか。
+ブログなんて書いてないで帰宅してトラブルシュートしなければいけないような気がしてきました。
+
+もうひとつ Power Point が妙なクラッシュをしていますね。
+このエラーコードはインターネットで検索してもいまいち見つかりません。
+あんまり続くようであればサポートに問い合わせたほうが良さそうです。
+
+~~ブログを書くためだけにエージェントを仕込んだのですが、ちょっと気が滅入ってきました・・・~~
+
 
