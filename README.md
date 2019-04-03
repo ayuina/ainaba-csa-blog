@@ -2,6 +2,7 @@
 
 - [インターネット環境から Azure 仮想マシンにリモートデスクトップ接続できない場合の回避策](./using-azure-vm-over-internet)
 - [Azure ポータルまとめ](./azure-portals)
+- [Azure Monitor Log を使用したオンプレ環境のログ収集と解析](./log-analysis-on-premise)
 
 ## 以前の Blog について
 
