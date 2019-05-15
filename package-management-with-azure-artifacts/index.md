@@ -179,6 +179,8 @@ PS > .\NuGet.exe push -Source "AyuInaFeed" -ApiKey AzureDevOps .\bin\Debug\Ayuin
 
 ## 開発環境でのパッケージの利用
 
+###
+
 
 
 ### Visual Studio の場合
@@ -211,4 +213,5 @@ Visual Studio を使用する場合（以下は VS2017 を使用）には、オ�
 
 ### 参考情報
 
-- [NuGet](https://docs.microsoft.com/ja-jp/nuget/what-is-nuget)
+- [NuGet パッケージの作成](https://docs.microsoft.com/ja-jp/nuget/what-is-nuget)
+- [Azure Artifacts の利用](https://docs.microsoft.com/en-us/azure/devops/artifacts/get-started-nuget?view=azure-devops)
