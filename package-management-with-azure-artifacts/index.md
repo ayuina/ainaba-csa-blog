@@ -147,6 +147,12 @@ PS > Expand-Archive .\bin\Debug\Ayuina.Samples.Utility.1.0.0.zip
 
 ### パッケージリポジトリとフィードを作成する
 
+発行するパッケージの準備ができたので、次はパッケージリポジトリを準備します。
+Azure Artifacts の画面からフィードを新規作成し、フィードへの接続情報を取得します。
+
+![フィードの作成と接続](./images/create-and-connect-feed.png)
+
+
 
 ## パッケージの自動リリースパイプライン
 
