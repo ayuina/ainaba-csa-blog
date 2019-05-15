@@ -179,8 +179,57 @@ PS > .\NuGet.exe push -Source "AyuInaFeed" -ApiKey AzureDevOps .\bin\Debug\Ayuin
 
 ## 開発環境でのパッケージの利用
 
-###
+### .NET Core CLI を使用する
 
+まずパッケージを利用する側のコンソールアプリケーションを開発しましょう。
+
+```pwsh
+PS > dotnet new console --name ConsoleApp1 --framework netcoreapp2.1
+```
+
+次に Azure Artifacts のフィードにアクセスしてパッケージを取得したいわけですが、dotnet コマンドはそのままではフィードに認証を通すことができません。
+まず 
+[こちら](https://docs.microsoft.com/ja-jp/azure/devops/artifacts/nuget/dotnet-exe?view=azure-devops)
+の手順に従って `Azure Artifacts Credential Provider` をインストールしてください。
+その上で下記のコマンドを実行します。
+
+```pwsh
+PS > dotnet add package Ayuina.Samples.Utility -s
+https://pkgs.dev.azure.com/org-name/_packaging/AyuInaFeed/nuget/v3/index.json --interactive
+```
+
+そうすると下記のようにプロジェクトファイルに対して依存するパッケージへの参照が記録されます。
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Ayuina.Samples.Utility" Version="1.0.1" />
+  </ItemGroup>
+
+</Project>
+```
+
+あとはパッケージされたライブラリを呼び出すようにコードを修正します。
+
+```csharp
+    static void Main(string[] args)
+    {
+        string message = Ayuina.Samples.Utility.Class1.Hello("NUGET");
+        Console.WriteLine(message);
+    }
+```
+
+実行してライブラリが呼び出せていることを確認しましょう。
+
+```pwsh
+PS > dotnet run
+```
 
 
 ### Visual Studio の場合
