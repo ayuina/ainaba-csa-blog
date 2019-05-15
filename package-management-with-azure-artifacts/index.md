@@ -27,7 +27,10 @@ Azure Artifacts をちゃんと使ったことが無かったので検証した�
 
 ## パッケージの作成と公開
 
-まずローカル開発環境で Nuget パッケージを作る方法です。前提として「共有したい部品」である DLL が既にあることを前提とします。
+まずローカル開発環境で Nuget パッケージを作る方法です。前提として「共有したい部品」である DLL が既にあるモノとします。
+ここからは基本的に
+[チュートリアル](https://github.com/ayuina/ainaba-csa-blog/blob/package-management-by-azure-artifact/package-management-with-azure-artifacts/index.md)
+にそった作業となります。
 
 ### 共通部品クラスライブラリの作成
 
@@ -57,8 +60,8 @@ namespace Ayuina.Samples.Utility
 ではビルドしてアセンブリを作成します。ビルドに成功したら生成物を確認してみましょう。拡張子 `dll` のファイルができていればとりあえず良しとします。
 
 ```pwsh
-> dotnet build
-> dir .\bin\Debug\netstandard2.0
+PS > dotnet build
+PS > dir .\bin\Debug\netstandard2.0
 
 Mode                LastWriteTime         Length Name
 ----                -------------         ------ ----
@@ -72,13 +75,13 @@ Mode                LastWriteTime         Length Name
 ではシンプルにこのまま Nuget パッケージを生成してみます。プロジェクトルートフォルダ（csproj ファイルがあるフォルダ）にて下記のコマンドを実行してみます。
 
 ```pwsh
-dotent pack
+PS > dotent pack
 ```
 
 成功するとビルド出力ディレクトリに拡張子 nupkg のファイルが出来ていると思います。
 
 ```pwsh
-> dir .\bin\Debug
+PS > dir .\bin\Debug
 
 Mode                LastWriteTime         Length Name
 ----                -------------         ------ ----
@@ -91,8 +94,8 @@ d-----       2019/05/15     17:52                netstandard2.0
 これで出来上がりなのですが、中身を見てみましょう。この `nupkg` は ZIP 形式のファイルの拡張子を変えただけなので、ZIP を解凍できるツールがあれば中身を見ることができます。
 
 ```pwsh
-> cp .\bin\Debug\Ayuina.Samples.Utility.1.0.0.nupkg .\bin\Debug\Ayuina.Samples.Utility.1.0.0.zip
-> Expand-Archive .\bin\Debug\Ayuina.Samples.Utility.1.0.0.zip
+PS > cp .\bin\Debug\Ayuina.Samples.Utility.1.0.0.nupkg .\bin\Debug\Ayuina.Samples.Utility.1.0.0.zip
+PS > Expand-Archive .\bin\Debug\Ayuina.Samples.Utility.1.0.0.zip
 ```
 
 中身を見てみるとごちゃごちゃっと入っていますが、ポイントは以下の2点でしょうか。
@@ -101,10 +104,48 @@ d-----       2019/05/15     17:52                netstandard2.0
 
 ![nupkgの中身](./images/inside-nupkg.png)
 
-この `nuspec` はプロジェクトの出力ディレクトリである `bin` ではなく、中間生成ファイルなどが格納される `obj` にも同じものが生成されています。 
- `nuspec` はパッケージの仕様を決めているマニフェストファイルなのですが、ここに記載された情報はプロジェクトファイル `csproj` から自動的に生成されています。
- 逆に言えば、ちゃんとしたメタデータを記載したいならば `csproj` を編集する必要があることになります。
+この `nuspec` はプロジェクトの出力ディレクトリである `bin` ではなく、中間生成ファイルなどが格納される `obj` にも出力されていますが、こちらはパッケージの中に含めるファイルレイアウトなども記載されており若干中身が異なります。
+`dotnet pack` コマンドを実行した段階で、プロジェクトファイル `csproj` からメタデータやファイルレイアウトを決めるためのマニフェストファイルとして `nuspec` が `obj` ディレクトリ生成され、それを元に実際のパッケージング処理が行われ　`nupkg` が生成されます。
+この際にファイルレイアウトは不要になるのでメタデータだけが `nuspec` ファイルに残る、といった感じでしょうか。
 
+逆に言えば、ちゃんとしたメタデータを記載したいならば `csproj` を編集するか、`nuspec` ファイルを別途手書きする必要があります。
+あるいは MSBuild のプロジェクトシステムを使わずに、最終的に `nupkg` に含まれるべきディレクトリ構造だけ適宜作成してしまい、メタデータだけ `nuspec` に記載してパッケージングしてしまうといったやり方が考えらえます。
+
+### プロジェクトファイルにパッケージメタデータを付与する
+
+それではプロジェクトファイル `csproj` を下記のように修正します。
+ここではメタデータを付与すると同時に、一応中身が変わったのでバージョンを上げています。
+また利用者にわかりやすいように Readme も追加しています。
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+
+        <PackageId>Ayuina.Samples.Utility</PackageId>
+        <Version>1.0.1</Version>
+        <Authors>ayuina</Authors>
+        <Title> Ayuina's awesome utilities </Title>
+        <PackageDescription> Nuget パッケージワークフローを説明するためのサンプルパッケージです。 </PackageDescription>
+        <PackageReleaseNotes> 1.0.1   : 初版にメタデータを追加しました </PackageReleaseNotes>
+    </PropertyGroup>
+    <ItemGroup>
+        <Content Include="readme.txt">
+        <Pack>true</Pack>
+        <PackagePath>.</PackagePath>
+        </Content>
+    </ItemGroup>
+
+</Project>
+```
+
+メタデータに使用できる要素は
+[リファレンス](https://docs.microsoft.com/ja-jp/dotnet/core/tools/csproj#nuget-metadata-properties)
+を参照ください。
+
+プロジェクトファイルの修正が終わったら再度 `dotnet pack` を実施すると、ビルド出力ディレクトリ配下に 2 つ目の `nupkg` ファイルが生成されていると思います。
+
+### パッケージリポジトリとフィードを作成する
 
 
 ## パッケージの自動リリースパイプライン
