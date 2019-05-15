@@ -150,9 +150,31 @@ PS > Expand-Archive .\bin\Debug\Ayuina.Samples.Utility.1.0.0.zip
 発行するパッケージの準備ができたので、次はパッケージリポジトリを準備します。
 Azure Artifacts の画面からフィードを新規作成し、フィードへの接続情報を取得します。
 
-![フィードの作成と接続](./images/create-and-connect-feed.png)
+![フィードの作成と接続](./images/ceate-and-connect-feed.png)
 
+フィードが作成出来たらこれまでの操作で作成してきた `nupkg` をフィードに発行します。
+この後の操作はこれまで使ってきた dotnet コマンドでも出来るのですが、
+接続情報の画面でダウンロードできる zip には nuget.exe だけでなく Azure DevOps に接続する用の認証モジュールが含まれていて便利なので、
+以降ではこちらを使用します。
 
+まずは作成したフィードを開発環境における NuGet のソースレポジトリとして追加します。この操作は各環境で１回だけやれば大丈夫です。
+初回実行時には認証ダイアログが表示されますので、その場合は Azure Artifacts にアクセス可能なユーザーアカウントで認証してください。
+
+```pwsh
+PS > .\nuget.exe sources Add -Name "AyuInaFeed" -Source "https://pkgs.dev.azure.com/orgnizationName/_packaging/AyuInaFeed/nuget/v3/index.json"
+```
+
+次に作成済みのパッケージ `nupkg` をフィードに発行（Push）します。
+パッケージは２つ出来ているので両方とも発行してしまいましょう
+
+```pwsh
+PS > .\NuGet.exe push -Source "AyuInaFeed" -ApiKey AzureDevOps .\bin\Debug\Ayuina.Samples.Utility.1.0.0.nupkg
+PS > .\NuGet.exe push -Source "AyuInaFeed" -ApiKey AzureDevOps .\bin\Debug\Ayuina.Samples.Utility.1.0.1.nupkg
+```
+
+発行が完了した後に Azure Artifacts のフィードを確認すると、同じ名前（）で 2 つのバージョンのパッケージが登録されていることが確認できます。
+
+![発行済みパッケージ](./images/published-packages.png)
 
 ## パッケージの自動リリースパイプライン
 
