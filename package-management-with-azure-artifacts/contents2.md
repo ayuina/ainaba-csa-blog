@@ -24,7 +24,7 @@ PS > dotnet new console --name ConsoleApp1 --framework netcoreapp2.1
 そして下記のコマンドを実行します。コマンドに指定する URL は前述のフィード作成時と同様に、Azure Artifacts の画面から確認できます。初回は認証画面が表示されると思いますので、開発側と同じ Artifacts にアクセスできる ID でログインしてください。
 
 ```pwsh
-PS > dotnet add package Ayuina.Samples.Utility -s
+PS > dotnet add package Ayuina.Samples.Utility --source
 https://pkgs.dev.azure.com/org-name/_packaging/AyuInaFeed/nuget/v3/index.json --interactive
 ```
 
