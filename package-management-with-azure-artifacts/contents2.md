@@ -89,9 +89,9 @@ Visual Studio を使用する場合（以下は VS2017 を使用）には、オ�
 ## ここまでのまとめ
 
 使うだけなら簡単ですね。
-ここまでで下図の丸で囲まれたあたりまでがカバーできたことになります。
+ここでは下図の丸で囲まれたあたりがカバーできたことになります。
 
-![ここまでのまとめ](./images/package-management-workflow-devonly.png)
+![ここまでのまとめ](./images/package-management-workflow-restore-package.png)
 
 これまでは手動でのパッケージ開発・利用のワークフローを紹介してきました。
 ここからはこれらのワークフローを自動化していきたいと思います。
