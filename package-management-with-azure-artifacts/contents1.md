@@ -176,7 +176,7 @@ PS > .\NuGet.exe push -Source "AyuInaFeed" -ApiKey AzureDevOps .\bin\Debug\Ayuin
 PS > .\NuGet.exe push -Source "AyuInaFeed" -ApiKey AzureDevOps .\bin\Debug\Ayuina.Samples.Utility.1.0.1.nupkg
 ```
 
-発行が完了した後に Azure Artifacts のフィードを確認すると、同じ名前（）で 2 つのバージョンのパッケージが登録されていることが確認できます。
+発行が完了した後に Azure Artifacts のフィードを確認すると、同じ名前で 2 つのバージョンのパッケージが登録されていることが確認できます。
 
 ![発行済みパッケージ](./images/published-packages.png)
 
@@ -213,3 +213,10 @@ info :     [CredentialProvider]VstsCredentialProvider - Attempting to exchange t
 前述のドキュメント中にもありますが、NuGet クライアントの仕様としてパッケージを PUSH する際には api key が必要になります。
 ただ Azure Artifacts の場合にはこの api key を使用しませんので、任意の文字列を入力して構いません。
 サンプルでは `AzureDevOps` と指定していますが、この値に意味はありません。
+
+## ここまでのまとめ
+
+ここまででやりたいことの 1/4 くらいが終わりました。
+![パッケージの発行まで](./images/package-management-workflow-publish-package.png)
+
+次は[発行したパッケージの利用方法](./contents2.md)です。
