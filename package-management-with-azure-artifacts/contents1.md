@@ -5,20 +5,22 @@ title: その１ - 開発環境における NuGet パッケージの作成と Az
 
 ## パッケージの作成と公開
 
-まずローカル開発環境で Nuget パッケージを作る方法です。前提として「共有したい部品」である DLL が既にあるモノとします。
+まずローカル開発環境で Nuget パッケージを作る方法です。
 ここからは基本的に
 [チュートリアル](https://github.com/ayuina/ainaba-csa-blog/blob/package-management-by-azure-artifact/package-management-with-azure-artifacts/index.md)
 にそった作業となります。
 
 ### 共通部品クラスライブラリの作成
 
-が、適当なものが無い場合は下記のようなコマンドで C# のクラスライブラリプロジェクトを作ってしまいましょう。ポータビリティの高い .NET Standard にしてみます。
+共有するための適当な既存の部品が無い場合は、下記のようなコマンドで C# のクラスライブラリプロジェクトを作ってしまいましょう。
+プロジェクト名は適宜書き換えてください。
+ここではポータビリティの高い .NET Standard にしてみます。
 
 ```pwsh
 > dotnet new classlib --name Ayuina.Samples.Utility --framework netstandard2.0
 ```
 
-出来上がったソースコードにロジックを追加します。まじめに作る気はないので以下のような感じで良いでしょうか。
+出来上がったソースコードにロジックを追加します。ここでまじめに部品を作る必要はないので以下のような感じで良いでしょうか。
 
 ```csharp
 using System;
@@ -35,7 +37,9 @@ namespace Ayuina.Samples.Utility
 }
 ```
 
-ではビルドしてアセンブリを作成します。ビルドに成功したら生成物を確認してみましょう。拡張子 `dll` のファイルができていればとりあえず良しとします。
+ではビルドしてアセンブリを作成します。
+ビルドに成功したら生成物を確認してみましょう。
+拡張子 `dll` のファイルができていればとりあえず良しとします。
 
 ```pwsh
 PS > dotnet build
@@ -50,7 +54,11 @@ Mode                LastWriteTime         Length Name
 
 ### パッケージを生成する
 
-ではシンプルにこのまま Nuget パッケージを生成してみます。プロジェクトルートフォルダ（csproj ファイルがあるフォルダ）にて下記のコマンドを実行してみます。
+ではシンプルにこのまま NuGet パッケージを生成してみます。
+.NET Core SDK の dotnet.exe には NuGet を扱えるコマンド 
+[dotnet nuget](https://docs.microsoft.com/ja-jp/nuget/tools/dotnet-commands) 
+も同梱されてますので、それを利用してしまいます。
+プロジェクトルートフォルダ（csproj ファイルがあるフォルダ）にて下記のコマンドを実行してみます。
 
 ```pwsh
 PS > dotent pack
@@ -69,11 +77,12 @@ d-----       2019/05/15     17:52                netstandard2.0
 
 ### パッケージの中身を確認する
 
-これで出来上がりなのですが、中身を見てみましょう。この `nupkg` は ZIP 形式のファイルの拡張子を変えただけなので、ZIP を解凍できるツールがあれば中身を見ることができます。
+これでパッケージとしては出来上がりなのですが、一応中身を見てみましょう。
+この `nupkg` ファイルは ZIP 形式のファイルの拡張子を変えただけなので、ZIP を解凍できるツールがあれば中身を見ることができます。
 
 ```pwsh
-PS > cp .\bin\Debug\Ayuina.Samples.Utility.1.0.0.nupkg .\bin\Debug\Ayuina.Samples.Utility.1.0.0.zip
-PS > Expand-Archive .\bin\Debug\Ayuina.Samples.Utility.1.0.0.zip
+PS > cp .\Ayuina.Samples.Utility.1.0.0.nupkg .\Ayuina.Samples.Utility.1.0.0.zip
+PS > Expand-Archive .\Ayuina.Samples.Utility.1.0.0.zip
 ```
 
 中身を見てみるとごちゃごちゃっと入っていますが、ポイントは以下の2点でしょうか。
@@ -82,18 +91,18 @@ PS > Expand-Archive .\bin\Debug\Ayuina.Samples.Utility.1.0.0.zip
 
 ![nupkgの中身](./images/inside-nupkg.png)
 
-この `nuspec` はプロジェクトの出力ディレクトリである `bin` ではなく、中間生成ファイルなどが格納される `obj` にも出力されていますが、こちらはパッケージの中に含めるファイルレイアウトなども記載されており若干中身が異なります。
-`dotnet pack` コマンドを実行した段階で、プロジェクトファイル `csproj` からメタデータやファイルレイアウトを決めるためのマニフェストファイルとして `nuspec` が `obj` ディレクトリ生成され、それを元に実際のパッケージング処理が行われ　`nupkg` が生成されます。
+この `nuspec` はプロジェクトの出力ディレクトリである `bin` ではなく、中間生成ファイルなどが格納される `obj` にも出力されています。
+こちらはパッケージの中に含めるファイルレイアウトなども記載されており、 `nupkg` に含まれている `nuspec` とは若干中身が異なります。
+実は `dotnet pack` コマンドを実行した段階で、プロジェクトファイル `csproj` からメタデータやファイルレイアウトを決めるためのマニフェストファイルとして `nuspec` が `obj` ディレクトリ生成されています。
+それを元に実際のパッケージング処理が行われ　`nupkg` が  `bin` に生成されていたわけです。
 この際にファイルレイアウトは不要になるのでメタデータだけが `nuspec` ファイルに残る、といった感じでしょうか。
-
-逆に言えば、ちゃんとしたメタデータを記載したいならば `csproj` を編集するか、`nuspec` ファイルを別途手書きする必要があります。
-あるいは MSBuild のプロジェクトシステムを使わずに、最終的に `nupkg` に含まれるべきディレクトリ構造だけ適宜作成してしまい、メタデータだけ `nuspec` に記載してパッケージングしてしまうといったやり方が考えらえます。
+逆に言えば、ちゃんとしたメタデータを記載したいならば `csproj` を編集すればよいわけです。
 
 ### プロジェクトファイルにパッケージメタデータを付与する
 
-それではプロジェクトファイル `csproj` を下記のように修正します。
-ここではメタデータを付与すると同時に、一応中身が変わったのでバージョンを上げています。
-また利用者にわかりやすいように Readme も追加しています。
+それではプロジェクトファイル `csproj` を下記のように修正してみます。
+ここではメタデータを付与すると同時に、一応中身が変わったので 1.0.0 から 1.0.1 にバージョンを上げています。
+また利用者にこの部品の内容を説明するための Readme も追加しています。 
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -123,17 +132,33 @@ PS > Expand-Archive .\bin\Debug\Ayuina.Samples.Utility.1.0.0.zip
 
 プロジェクトファイルの修正が終わったら再度 `dotnet pack` を実施すると、ビルド出力ディレクトリ配下に 2 つ目の `nupkg` ファイルが生成されていると思います。
 
-## パッケージリポジトリとフィードを作成する
 
-発行するパッケージの準備ができたので、次はパッケージリポジトリを準備します。
-Azure Artifacts の画面からフィードを新規作成し、フィードへの接続情報を取得します。
+### その他のパッケージの作り方
+
+ここまで紹介してきた手順は MSBuild のプロジェクトシステムに依存したパッケージの作り方なわけですが、究極的には `nuspec` ファイルを別途手書きしてしまっても良いことになります。
+最終的に `nupkg` に含めたいディレクトリ構造を適宜作成してしまい、メタデータを `nuspec` に記載して、NuGet のツールを使ってパッケージングしてしまうことも可能です。
+この方法であれば任意のファイルを含んだパッケージを生成することが可能です。
+パッケージ作成の様々なワークフローに関しては
+[こちら](https://docs.microsoft.com/ja-jp/nuget/create-packages/overview-and-workflow)
+をご参照ください。
+
+## 作成したパッケージの提供
+
+パッケージの準備ができたので、次はパッケージリポジトリを準備して、そこにパッケージを発行していきます。
+ここからの手順は 
+[Azure Artifacts のドキュメント](https://docs.microsoft.com/ja-jp/azure/devops/artifacts/get-started-nuget?view=azure-devops) 
+を参照すると良いでしょう。
+
+### リポジトリとフィードを作成する
+
+Azure Artifacts の画面からフィードを新規作成すると、フィードへの接続情報を取得できます
 
 ![フィードの作成と接続](./images/create-and-connect-feed.png)
 
-フィードが作成出来たらこれまでの操作で作成してきた `nupkg` をフィードに発行します。
-この後の操作はこれまで使ってきた dotnet コマンドでも出来るのですが、
-接続情報の画面でダウンロードできる zip には nuget.exe だけでなく Azure DevOps に接続する用の認証モジュールが含まれていて便利なので、
-以降ではこちらを使用します。
+接続情報の画面ではコマンドラインのサンプルだけではなく、コマンドラインツール（NuGet.exe）もダウンロードできます。
+ダウンロードする zip ファイルには Azure DevOps に接続するための認証モジュールが含まれていて便利ですので、こちらを使いましょう。
+
+### フィードにパッケージを発行する
 
 まずは作成したフィードを開発環境における NuGet のソースレポジトリとして追加します。この操作は各環境で１回だけやれば大丈夫です。
 初回実行時には認証ダイアログが表示されますので、その場合は Azure Artifacts にアクセス可能なユーザーアカウントで認証してください。
@@ -155,4 +180,36 @@ PS > .\NuGet.exe push -Source "AyuInaFeed" -ApiKey AzureDevOps .\bin\Debug\Ayuin
 
 ![発行済みパッケージ](./images/published-packages.png)
 
+### .NET Core SDK を使用して発行する
 
+ビルド、パッケージに使用した dotnet コマンドを使用して、Azure Artifacts への発行まで一気通貫にやってしまいたい場合には、
+[Azure Artifacts Credential Provider](https://docs.microsoft.com/ja-jp/azure/devops/artifacts/nuget/dotnet-exe?view=azure-devops)
+が必要になります。
+
+発行用のコマンドは以下のようになります。
+
+```pwsh
+PS > dotnet nuget push .\bin\Debug\Ayuina.Samples.Utility.1.0.3.nupkg  --source https://pkgs.dev.azure.com/orgName/_packaging/feedName/nuget/v3/index.json --api-key AzureDevOps --interactive
+```
+
+初回など認証情報キャッシュが存在しない場合は認証が必要になるので --interactive オプションを使用してください。
+認証が必要な場合にはコマンドの出力に「ブラウザを使用して認証しろ」という指示が出ますので、そちらの指示に従って Azure Artifacts フィードにアクセス可能なユーザー情報を使用して認証を受けてください。
+
+```pwsh
+log  :     [CredentialProvider]DeviceFlow: https://pkgs.dev.azure.com/ainaba-mscom/_packaging/AyuInaFeed/nuget/v3/index.json
+log  :     [CredentialProvider]ATTENTION: User interaction required.
+log  :
+log  :     **********************************************************************
+log  :
+log  :     To sign in, use a web browser to open the page https://microsoft.com/devicelogin and enter the code XXXYYYZZZ to authenticate.
+log  :
+log  :     **********************************************************************
+info :     [CredentialProvider]VstsCredentialProvider - Acquired bearer token using 'ADAL Device Code'
+info :     [CredentialProvider]VstsCredentialProvider - Attempting to exchange the bearer token for an Azure DevOps session token.
+```
+
+### API KEY は？
+
+前述のドキュメント中にもありますが、NuGet クライアントの仕様としてパッケージを PUSH する際には api key が必要になります。
+ただ Azure Artifacts の場合にはこの api key を使用しませんので、任意の文字列を入力して構いません。
+サンプルでは `AzureDevOps` と指定していますが、この値に意味はありません。
