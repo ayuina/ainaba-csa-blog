@@ -5,7 +5,8 @@ title: その２ - 開発環境における Azure Artifacts に格納された N
 
 ## 開発環境でのパッケージの利用
 
-今度は発行したパッケージを利用してみましょう。共有ライブラリを開発した人とは別の人間になった気持ちで進めます。
+今度は発行したパッケージを利用してみましょう。
+前回紹介した[共有ライブラリを開発](./contents1.md)した人とは別の人間になった気持ちで進めます。
 
 ### .NET Core CLI を使用する
 
@@ -15,7 +16,7 @@ title: その２ - 開発環境における Azure Artifacts に格納された N
 PS > dotnet new console --name ConsoleApp1 --framework netcoreapp2.1
 ```
 
-次に Azure Artifacts のフィードにアクセスしてパッケージを取得したいわけですが、dotnet コマンドはそのままではフィードに認証を通すことができません。
+次に Azure Artifacts のフィードにアクセスしてパッケージを取得したいわけですが、dotnet コマンドはそのままでは Azure Artifacts のフィードに認証を通すことができません。
 まず 
 [こちら](https://docs.microsoft.com/ja-jp/azure/devops/artifacts/nuget/dotnet-exe?view=azure-devops)
 の手順に従って `Azure Artifacts Credential Provider` をインストールしてください。
@@ -87,8 +88,13 @@ Visual Studio を使用する場合（以下は VS2017 を使用）には、オ�
 
 ## ここまでのまとめ
 
-大分長くなってしまいましたが、ここまでで下図の丸で囲まれたあたりまでがカバーできたことになります。
-先は長いですね・・・
+使うだけなら簡単ですね。
+ここまでで下図の丸で囲まれたあたりまでがカバーできたことになります。
 
 ![ここまでのまとめ](./images/package-management-workflow-devonly.png)
 
+これまでは手動でのパッケージ開発・利用のワークフローを紹介してきました。
+ここからはこれらのワークフローを自動化していきたいと思います。
+
+- [パッケージ生成とカスタムフィードへの発行を自動化する](./contents3.md)
+- [カスタムフィードを利用したアプリケーションを自動デプロイする](./contents4.md)
