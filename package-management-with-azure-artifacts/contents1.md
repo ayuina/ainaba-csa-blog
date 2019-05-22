@@ -196,7 +196,7 @@ PS > dotnet nuget push .\bin\Debug\Ayuina.Samples.Utility.1.0.3.nupkg  --source 
 認証が必要な場合にはコマンドの出力に「ブラウザを使用して認証しろ」という指示が出ますので、そちらの指示に従って Azure Artifacts フィードにアクセス可能なユーザー情報を使用して認証を受けてください。
 
 ```pwsh
-log  :     [CredentialProvider]DeviceFlow: https://pkgs.dev.azure.com/ainaba-mscom/_packaging/AyuInaFeed/nuget/v3/index.json
+log  :     [CredentialProvider]DeviceFlow: https://pkgs.dev.azure.com/orgName/_packaging/AyuInaFeed/nuget/v3/index.json
 log  :     [CredentialProvider]ATTENTION: User interaction required.
 log  :
 log  :     **********************************************************************
