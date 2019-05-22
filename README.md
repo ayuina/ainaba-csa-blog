@@ -1,3 +1,8 @@
+---
+layout: default
+title: 目次
+---
+
 ## コンテンツ
 
 - [Azure Artifacts を使用した Nuget パッケージの管理](./package-management-with-azure-artifacts)
