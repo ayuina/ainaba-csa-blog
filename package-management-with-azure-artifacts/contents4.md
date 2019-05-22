@@ -80,7 +80,7 @@ PS > git commit -m "コメント"
 PS > git push
 ```
 
-## ビルドパイプライン
+## 継続的インテグレーションとデプロイの実装
 
 次に格納したソースコードをビルドして、成果物を自動生成します。
 ここでは **共有ライブラリを利用する Azure Function アプリ** が成果物として得られることがゴールになります。
@@ -115,7 +115,7 @@ PS > git push
 [こちら](https://docs.microsoft.com/ja-jp/azure/azure-functions/deployment-zip-push)
 をご参照ください。
 
-### リリースパイプライン定義の作成
+### リリースパイプライン
 
 ビルド成果物ができたらそれを Azure Function にデプロイします。
 リリースパイプラインの定義方法も [その３](./contents3.md) をご参照いただければと思いますが、
