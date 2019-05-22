@@ -3,71 +3,133 @@ layout: default
 title: その４ - Azure Artifacts に格納された NuGet パッケージを Azure Pipeline から取得する
 ---
 
+## CICDパイプラインからパッケージを利用する
+
+それでは最後にパッケージを利用するアプリケーションの CI/CD を実現してみましょう。
+
 ## ソースコードリポジトリの作成
 
-さて既に利用側のアプリケーション（コンソールアプリ）ができていますので、まずは Azure Repos を作成して格納してしまいましょう。
-Git のリポジトリを作成したら [その２](./contents2.md) で作成したプロジェクトを Push しておきます。
+まずは Azure Repos を作成します。
+ライブラリ開発側とは開発ライフサイクルも異なりますし要件も独立しますので別の Azure Repos を作成します。
 
 ![ソースコードリポジトリの作成](./images/create-repo.png)
 
-コマンドラインは以下のような感じです。
+次にリポジトリを利用するアプリケーションを作成します。
+[その２](./contents2.md) で作成したプロジェクトはコンソールアプリケーションであるため、
+自動リリースといってもどこかのフォルダに実行可能ファイルを配置するだけで面白くありません。
+ここでは Azure Functions を作成し、そこに[その３](./contents3.md)で発行したライブラリを利用する関数を配置してみましょう。
+
+## 利用側アプリケーションの作成
+
+Visual Studio 等を使用して Azure Functions のアプリケーションを作成します。
+次に [その２](./contents2.md) で紹介したように NuGet パッケージマネージャでフィードを参照すると、
+[その１](./contents1.md) や [その３](./contents2.md) で発行した各バージョンのパッケージが参照できます。
+
+![フィードの参照](./images/refer-custom-feed.png)
+
+ここで設定したパッケージとバージョン番号はプロジェクトファイルに記載され、ビルド時に適切なバージョンのインストールを行います。
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <AzureFunctionsVersion>v2</AzureFunctionsVersion>
+    <RootNamespace>hello_function</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Ayuina.Samples.Utility" Version="1.1.0-CI-20190522-041524" />
+    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.28" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="host.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="local.settings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+</Project>
+```
+
+このパッケージを利用した関数のコードは以下のようになります。
+
+```csharp
+       [FunctionName("Function1")]
+        public static async Task<IActionResult> Run(
+            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest  req, 
+            ILogger log)
+        {
+            string name = req.Query["name"];
+            if(name == null)
+            {
+                return new BadRequestObjectResult("Please pass a name on the query string or in the request body");
+            }
+
+            var message = $"{Ayuina.Samples.Utility.Class1.Hello(name)}";
+            return (ActionResult)new OkObjectResult(message);
+        }
+    }
+```
+
+この Functions アプリをソースコード レポジトリに Push しておきます。
 
 ```pwsh
-PS > git clone https://org-name@dev.azure.com/org-name/projectName/_git/repository-name
-PS > cd repository-name
-PS > # ソースコードのコピー
 PS > git add .
 PS > git commit -m "コメント"
 PS > git push
 ```
 
-![ソースコードの格納](./images/source-code-repository.png)
-
 ## ビルドパイプライン
 
 次に格納したソースコードをビルドして、成果物を自動生成します。
-ここでは **共有ライブラリを利用するコンソールアプリケーション** が成果物として得られることがゴールになります。
+ここでは **共有ライブラリを利用する Azure Function アプリ** が成果物として得られることがゴールになります。
 
-### ビルドパイプライン定義の作成
+### ビルドパイプライン
 
-ビルドパイプラインは YAML 形式で定義するのが新しいやり方なのですが、
-初めての場合は若干わかりにくいので、視覚的なクラシックパイプラインを使用します。
+ビルドパイプラインの定義方法は [その３](./contents3.md) をご参照いただければと思いますが、Azure Functions の場合は専用のビルドテンプレートが用意されていますのでそちらを利用します。
 
-![ASP.NET Coreテンプレートからビルドパイプラインを作成する](./images/create-subscriber-build-pipeline.png)
+![Azure Functionのビルドテンプレート](./images/build-template-for-function-asis.png)
 
-ビルドのソースとして先ほど作成したレポジトリを指定し、ビルドテンプレートとして ASP.NET Core を指定します。
-[その２](./contents2.md) で作成したのは ASP.NET Core ではなく Console アプリケーションなのですが、
-コンソール用のテンプレートは提供されていないので、ASP.NET Core 用をカスタマイズして使います。
+残念ながらこのテンプレートではカスタムフィードを設定する箇所がないので、このまま実行してもエラーになってしまいます。
+このためプロジェクトファイル `csproj` に記載された独自の共有ライブラリを含んだパッケージを、パブリックの NuGet.org に探しに行ってしまいます。
+当然 NuGet.org にはパッケージを発行してませんので、見つからずにビルドエラーになってしまうわけです。
 
-ポイントは `dotnet` タスクの `restore` コマンドです。
-パラメータで指定しているプロジェクトファイルには、PackageReference セクションに共有ライブラリのパッケージ名とバージョンが記載されているはずです。
-`dotnet restore` を実行するとそのパッケージを探しに行くのですが、既定のパッケージ リポジトリである NuGet.org には発行していないため見つかりません。
-このため [その２](./contents2.md) ではコマンドラインを使用してフィードの URL を登録し、認証を通しておきました。
-しかし `dotnet` タスクの `restore` コマンドでは、同じプロジェクトに作成されたフィードであればドロップダウンで簡単に指定できます。
+さてどうしましょう。
 
-![カスタムフィードからの取得](./images/restore-from-custom-feed.png)
+`dotnet` タスクの `restore` コマンドであればフィードが指定できます。
+このタスクを実行してプロジェクトファイルに記載されたパッケージをビルドエージェント環境に取得し、
+その後で `build` コマンドを実行すると、既にパッケージのキャッシュがある状態ですのでビルドを実行することができます。
 
-ちなみに [その１](./contents1.md) で作成したフィードは Upstream が有効になっていますので、NuGet.org で管理されたパッケージもまとめて取得できる設定になっています。
-このため NuGet.org からのパッケージは使用しないようにチェックを外しています。
+![パッケージリストアの追加](./images/add-restore-task.png)
 
-次の `dotnet` タスクの `build` コマンドもプロジェクトファイルに記載された共有ライブラリを探しに行くのですが、既に前段の `restore` にてパッケージのキャッシュに共有ライブラリが取得されていますので、パッケージ取得はスキップされて実際のビルド処理が実行されます。
+ビルドを実行して正常に完了したら、成果物として出力されている ZIP ファイルを解凍して中身を確認します。
+この中身が Azure Functions に配置できるレイアウトになっていればリリース処理に進むことができます。
 
-![プロジェクトのビルド](./images/build-without-restore.png)
+![ビルドの実行結果](./images/function-build-artifact.png)
 
-その後 Publish コマンドでは配置用の資源を生成するのですが、今回は Web プロジェクトではないのでチェックを外しておく必要があります。
-こちらは共有ライブラリを利用するアプリケーションに合わせて設定ください。
+.NET Core ベースの Azure Functions アプリではアセンブリが bin フォルダ配下に配置されています。
+この中には利用側 Functions アプリ `hello-function.dll` と一緒に共有ライブラリ `Ayuina.Samples.Utility.dll` が含まれていることが確認できます。
 
-![Webプロジェクトではない](./images/publish-console-app.png)
+なお Azure Functions アプリの ZIP 形式での展開する方法についての詳細は
+[こちら](https://docs.microsoft.com/ja-jp/azure/azure-functions/deployment-zip-push)
+をご参照ください。
 
+### リリースパイプライン定義の作成
 
-### ビルドパイプラインの実行
+ビルド成果物ができたらそれを Azure Function にデプロイします。
+リリースパイプラインの定義方法は [その３](./contents3.md) をご参照いただければと思いますが、
+Azure Functions の場合は専用のデプロイタスクが用意されていますのでそちらを利用します。
 
-パイプラインの定義が完了したら手動でビルドを開始してみましょう。
-キューに入れると少ししてビルドが開始され、完了すると成果物がダウンロードできるようになります。
+![Funcsionアプリのデプロイ](./images/release-function-app-cicd.png)
 
-![ビルド実行](./images/build-and-artifacts.png)
+まずは [その３](./contents3.md) と同様にリリースエージェントの実行環境にビルド成果物をダウンロードしておき、
+Functions デプロイ用のタスクでデプロイ先と対象となるアプリ（zip）を指定します。
 
-成果物は ZIP で圧縮された状態でダウンロードできますので、解凍して中身を確認してみましょう。
+リリースを実行して正常に完了したら Function アプリを実行してみましょう。
+前述のサンプルコードでは HTTP トリガーになっていますので、URL のクエリ文字列に名前を入力すると、
+共有ライブラリ内に実装されたメッセージが返ってくるはずです。
+
 
 ## ここまでのまとめ
 
