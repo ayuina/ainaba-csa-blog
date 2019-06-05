@@ -239,6 +239,32 @@ var config = new ConfigurationBuilder()
 > dotnet run --AppSettings:Key1=value-from-cmdlineargs
 ```
 
+### Docker コンテナ
+
+Linux 環境での動作確認用に作った Dockerfile を参考までに記載しておきます。
+環境変数の定義を Dockerfile に記載してコンテナイメージを作成しておけば、
+docker run のタイミングでコマンドライン引数として環境変数を指定することもできるわけです。
+
+```
+FROM mcr.microsoft.com/dotnet/core/sdk:2.2
+WORKDIR /app
+COPY . ./src
+RUN dotnet build ./src/appname.csproj
+RUN dotnet publish ./src/appname.csproj --runtime linux-x64 --self-contained true --output /app
+ENV ConnectionStrings__SqlConnection1 constr-defined-in-dockerfile
+
+ENTRYPOINT ["dotnet", "appname.dll"]
+```
+
+コンテナのビルドと実行は以下のようになります。
+
+```cmd
+> docker build -t config-sample .
+> docker run --env AppSettings__Key2=value-from-docker-commandline
+```
+あくまでも指定しているのは Linux の環境変数なのでアンダースコア２つで区切る必要がありますのでご注意を。
+コマンドラインでいろいろ試していると `dotnet run` と `docker run` を交互に実行するので間違えやすいんです・・・。
+
 
 ## 参考資料など
 - [ASP.NET Coreの構成](https://docs.microsoft.com/ja-jp/aspnet/core/fundamentals/configuration/index?tabs=basicconfiguration)
