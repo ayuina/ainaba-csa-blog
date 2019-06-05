@@ -212,6 +212,32 @@ $ export ConnectionStrings__SqlConnection1=server=honbanServer;database=pubs;use
 $ dotnet run
 ```
 
+アプリケーションのコード中で `ConfigurationBuilder` の構築コードでは構成プロバイダーの追加を行っていますが、
+実際に設定値を読み取るコード箇所では変更が必要なく、コロン区切りのままで大丈夫です。
+
+
+### コマンドライン引数による設定値の上書き
+
+前述のように環境変数を追加した場合には、構築した `IConfiguration` オブジェクトからは全ての環境変数の値を取得することができます。
+となると同一マシン上で異なる設定値を使用する複数のプロセスを動作させたい場合には、コマンドライン引数から動的に上書きできた方がいい場合もあるでしょう。
+検証作業やデバッグ等でアドホックに異なる設定値で実行したい場合などにも便利です。
+
+まず環境変数の場合と同様に、コマンドライン用の構成プロバイダーを追加します。
+
+```csharp
+var config = new ConfigurationBuilder()
+    .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+    .AddJsonFile("setting.json")
+    .AddEnvironmentVariables()
+    .AddCommandLine(Environment.GetCommandLineArgs())
+    .Build();
+```
+
+実行時には以下のように指定できます。
+
+```cmd
+> dotnet run --AppSettings:Key1=value-from-cmdlineargs
+```
 
 
 ## 参考資料など
