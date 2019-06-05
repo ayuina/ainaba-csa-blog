@@ -76,7 +76,7 @@ JSON ファイルに設定したいならば `Microsoft.Extensions.Configuration
         "CustomKey" : "CustomValue",
         "NestedSection" : {
             "ChildLevelKey" : "Child Value of Section1"
-        },
+        }
     }
 }
 ```
@@ -198,10 +198,21 @@ var config = new ConfigurationBuilder()
 JSON ファイルで記載した場合にはネスト構造が表現しやすかったですが、環境変数だと一行の文字列で記載しなければなりません。
 よって前述と同じようにコロン区切りで環境変数を設定します。
 以下のように環境変数を事前に設定しておくことで JSON ファイルの内容に関わらず、環境変数に設定した値が読み取られていることがわかります。
+
 ```cmd
 > SET ConnectionStrings:SqlConnection1=server=honbanServer;database=pubs;user=sa;password=SECRET!!!
 > dotnet run
 ```
+
+環境変数で設定する際のセクション区切り文字としてコロン（:）ではなくアンダースコア２つ(__)を使用することも可能です。
+Linux 上で動作させる場合にはこちらをご利用ください。
+
+```bash
+$ export ConnectionStrings__SqlConnection1=server=honbanServer;database=pubs;user=sa;password=SECRET!!!
+$ dotnet run
+```
+
+
 
 ## 参考資料など
 - [ASP.NET Coreの構成](https://docs.microsoft.com/ja-jp/aspnet/core/fundamentals/configuration/index?tabs=basicconfiguration)
