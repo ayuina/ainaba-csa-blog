@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [App Service の VNet 統合とサービスエンドポイントを使用した SQL Database へのアクセス制御](./vnet-integ-and-service-endpoint)
 - [Azure Artifacts を使用した Nuget パッケージの管理](./package-management-with-azure-artifacts)
 - [インターネット環境から Azure 仮想マシンにリモートデスクトップ接続できない場合の回避策](./using-azure-vm-over-internet)
 - [Azure ポータルまとめ](./azure-portals)
