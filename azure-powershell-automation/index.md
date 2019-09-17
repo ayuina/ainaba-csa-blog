@@ -213,8 +213,15 @@ PS> Set-AzContext -SubscriptionId $subscriptionid
 PS> #自動化したい処理の実装前
 ```
 
-
 ## まとめ
 
+Azure で実行するという条件さえ満たせれば、サービスプリンシパルよりもマネージド ID の方が楽ができると考えます。
+とは言っても全く新しい仕組みではなく、Azure環境内でのみ利用できるちょっと特殊なサービスプリンシパルなので、
+RBAC等の仕組みは全く一緒ですので安心してご利用いただければと思います。
 
+|種類|実行環境|設定方法|取得方法|
+|---|---|---|---|
+|サービスプリンシパル|任意|アプリ登録| `Connect-AzAccount -ServicePrincipal` |
+|システム割り当てマネージド ID|Azure リソース内|システム割り当て状態をオンにする| `Connect-AzAccount -Identity` |
+|ユーザー割り当てマネージド ID|Azure リソース内|マーケットプレイスで作成してリソースに割り当て| `Connect-AzAccount -Identity -AccountId` |
 
