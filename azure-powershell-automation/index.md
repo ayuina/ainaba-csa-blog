@@ -208,19 +208,6 @@ PS>
 PS> ＃実行結果として RBAC によって明示的にアクセス権を付与したリソース（この場合はVNET）だけが表示されるはず
 ```
 
-
-## 留意事項
-
-前述のサンプルの事前準備の内容では各々１つの仮想ネットワークにしか RBAC 権限がないので省略しておりますが、
-実業務の現場ではサービスプリンシパルが複数のサブスクリプションにアクセス権をもつ場合があります。
-このため明示的にサブスクリプション ID を指定してスコープを絞り込んでおくことをお勧めします。
-
-```powershell
-PS> #Connect-AzAccount の後
-PS> Set-AzContext -SubscriptionId $subscriptionid
-PS> #自動化したい処理の実装前
-```
-
 ## まとめ
 
 Azure で実行するという条件さえ満たせれば、サービスプリンシパルよりもマネージド ID の方が楽ができると考えます。
@@ -233,3 +220,58 @@ RBAC等の仕組みは全く一緒ですので安心してご利用いただけ�
 |システム割り当てマネージド ID|Azure リソース内|システム割り当て状態をオンにする| `Connect-AzAccount -Identity` |
 |ユーザー割り当てマネージド ID|Azure リソース内|マーケットプレイスで作成してリソースに割り当て| `Connect-AzAccount -Identity -AccountId` |
 
+
+## 補足
+
+### 留意事項
+
+前述のサンプルの事前準備の内容では各々１つの仮想ネットワークにしか RBAC 権限がないので省略しておりますが、
+実業務の現場ではサービスプリンシパルが複数のサブスクリプションにアクセス権をもつ場合があります。
+このため明示的にサブスクリプション ID を指定してスコープを絞り込んでおくことをお勧めします。
+
+```powershell
+PS> #Connect-AzAccount の後
+PS> Set-AzContext -SubscriptionId $subscriptionid
+PS> #自動化したい処理の実装前
+```
+
+### アクセストークンをそのまま利用するパターン
+
+前述の PowerShell の例では `Connect-AzAccount` の `-Ientity` オプションを指定することで暗黙的にアクセストークンが取得・利用されていたが、
+Azure 仮想マシン内部では実際には [Instance Metadata Serice（IMDS）](https://docs.microsoft.com/ja-jp/azure/virtual-machines/windows/instance-metadata-service)
+を利用しています。
+
+IMDS を利用してユーザー割当マネージド ID を取得・利用するコード例は以下のようになります。
+システム割当マネージド ID を使用したい場合は URL に含まれる `client_id` クエリパラメータを除去して実行してください。
+
+```powershell
+PS> ＃認証キャッシュのクリア
+PS> Clear-AzContext -Force
+PS>
+PS> ＃Azure Resource Manager を利用するためのアクセストークンを取得
+PS> $resource = "https://management.azure.com"
+PS> $api_version = "2018-02-01"
+PS> $url = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=${api_version}&client_id=${clientid}&resource=${resource}"
+PS> $response = Invoke-WebRequest -UseBasicParsing -Method Get -Headers @{Metadata=$true} -Uri $url
+PS> $token = $response.Content | ConvertFrom-Json
+PS>
+PS> ＃取得したアクセストークンを用いてAzure に接続
+PS> Connect-AzAccount -AccessToken $token.access_token -AccountId $clientid
+PS>
+PS> ＃自動化したい処理を実行
+PS> Get-AzResource
+PS>
+PS> ＃実行結果として RBAC によって明示的にアクセス権を付与したリソース（この場合はVNET）だけが表示されるはず
+```
+
+上記のコードを PowerShell から使用するケースはあまり無いように思いますが、
+例えば Azure AD での認証に対応した REST API を直接実行したい場合などには、
+取得したアクセストークンを Bearer トークンとして  HTTP Header に追加することで利用することができます。
+
+### Azure Automation という選択肢
+
+Azure PowerShell を実行したいというユースケースに限って言えば、マネージド ID ではなく 
+[Azure Automation](https://docs.microsoft.com/ja-jp/azure/automation/) を使用することができます。
+もともと Azure Automation は Automation 実行アカウントと呼ばれるサービスプリンシパルを管理する仕組みと、
+それを利用するための実行環境が提供されています。
+Runbook 内で PowerShell を実行する際に `Get-AutomationConnection` を呼び出すことで Azure への接続情報を取得することができます。
