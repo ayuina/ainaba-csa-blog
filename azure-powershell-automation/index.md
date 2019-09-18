@@ -214,11 +214,11 @@ Azure で実行するという条件さえ満たせれば、サービスプリ�
 とは言っても全く新しい仕組みではなく、Azure環境内でのみ利用できるちょっと特殊なサービスプリンシパルなので、
 RBAC等の仕組みは全く一緒ですので安心してご利用いただければと思います。
 
-|種類|実行環境|設定方法|取得方法|
-|---|---|---|---|
-|サービスプリンシパル|任意|アプリ登録| `Connect-AzAccount -ServicePrincipal` |
-|システム割り当てマネージド ID|Azure リソース内|システム割り当て状態をオンにする| `Connect-AzAccount -Identity` |
-|ユーザー割り当てマネージド ID|Azure リソース内|マーケットプレイスで作成してリソースに割り当て| `Connect-AzAccount -Identity -AccountId` |
+|種類|実行可能な環境|構成する方法|必要な構成情報|実行時の取得方法|
+|---|---|---|---|---|
+|サービスプリンシパル|任意|アプリ登録|テナントID、クライアントID、**シークレット**| `Connect-AzAccount -ServicePrincipal` |
+|システム割り当てマネージド ID|Azure リソース内|システム割り当て状態をオンにする|**不要**| `Connect-AzAccount -Identity` |
+|ユーザー割り当てマネージド ID|Azure リソース内|マーケットプレイスで作成してリソースに割り当て|クライアントID| `Connect-AzAccount -Identity -AccountId` |
 
 
 ## 補足
