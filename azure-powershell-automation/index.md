@@ -264,9 +264,67 @@ PS>
 PS> ＃実行結果として RBAC によって明示的にアクセス権を付与したリソース（この場合はVNET）だけが表示されるはず
 ```
 
-上記のコードを PowerShell から使用するケースはあまり無いように思いますが、
-例えば Azure AD での認証に対応した REST API を直接実行したい場合などには、
-取得したアクセストークンを Bearer トークンとして  HTTP Header に追加することで利用することができます。
+上記のコードで `resource` パラメータに `https://management.azure.com` を使用していますが、
+これは ARM:Azure Resource Manager の REST API にアクセスするためのトークンを要求していることになります。
+ただ、前述のコード例を見る通り、ARM を操作したいだけであれば素直に Azure PowerShell のコマンドレットを使用する方が楽チンです。
+
+### Azure リソースの REST API を呼び出す
+
+一方でアクセストークンが取れると言うことは、ARM と同様に Azure AD RBAC で保護される REST API であれば同様に操作が可能と言うことです。
+例えばストレージアカウントの Blob サービスなどは [Azure AD を利用したアクセス制御](https://docs.microsoft.com/ja-jp/azure/storage/common/storage-auth-aad)に対応しています。
+
+事前準備としてストレージアカウントの Blob コンテナーに対して、ユーザー割り当てマネージド ID のアクセス権を付与します。
+
+![rbac for blob](./images/uami-rbac-for-blob.png)
+
+設定したコンテナーに対してアクセスするための具体的なコードは以下のようになります。
+アクセストークンを取得する際に要求しているリソースが `https://storage.azure.com` になっており、
+[List Blobs](https://docs.microsoft.com/ja-jp/rest/api/storageservices/list-blobs) API を呼び出しています。
+この際に取得したアクセストークンを `Authorization` ヘッダーに `Bearer` トークンとして設定します。
+
+```powershell
+$uami_clientid = "clientid guid of user assinged managed identity",
+$blob_container = "https://storageAccountName.blob.core.windows.net/containerName"
+
+#実行コンテキスト情報をクリア
+Clear-AzContext -Force
+
+#ストレージアカウントのリソースID
+$resource = "https://storage.azure.com/"
+
+#ユーザー割り当てManaged IDを使用してストレージ用のアクセストークンを取得
+$api_version = "2018-02-01"
+$uami_url = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=${api_version}&client_id=${uami_clientid}&resource=${resource}"
+$uami_response = Invoke-WebRequest -UseBasicParsing -Method Get -Headers @{Metadata=$true} -Uri $uami_url
+$token = $uami_response.Content | ConvertFrom-Json
+
+# コンテナに格納された Blob 一覧を取得する（List） 
+$listBlobUrl = "${blob_container}?restype=container&comp=list"
+$aadRestHeaders = @{
+    "Authorization" = "Bearer $($token.access_token)"
+    "x-ms-version" = "2019-02-02"
+}
+$listBlobResponse = Invoke-WebRequest -UseBasicParsing -Method Get -Headers $aadRestHeaders -Uri $listBlobUrl 
+
+# レスポンスは BOM 付き UTF-8 エンコードされた XML なので、まず BOM を除去
+$bom = [Text.Encoding]::Default.GetString([Text.Encoding]::UTF8.GetPreamble())
+$content = $listBlobResponse.Content
+if($content.StartsWith($bom))
+{
+    Write-Host "removing $bom"
+    $content = $content.Remove(0, $bom.Length)
+}
+
+# XPATH を使用して Blob をリストアップ
+$content | select-xml -Xpath "//EnumerationResults//Blob/Name" | foreach {$_.Node.InnerText}
+
+```
+
+ここまで書いておいて何ですが、技術的には PowerShell を使う必要は全くなく、任意の言語で REST API を呼び出すことが可能です。
+より詳しくは
+[こちら](https://docs.microsoft.com/ja-jp/rest/api/storageservices/authorize-with-azure-active-directory)
+のドキュメントをご参照ください。
+さらに言えば REST API のように低水準のコーディングする必要もなく、各言語用の SDK が提供されていればそちらを使用するべきです。
 
 ### Azure Automation という選択肢
 
