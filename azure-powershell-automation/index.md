@@ -129,7 +129,7 @@ Azure ポータルで状態を `オン` に切り替えることで自動的に�
 ### Azure PowerShell を使用して接続する
 
 以上で必要な事前準備が完了したので `Connect-AzAccount` を `-Identity` オプションを使用して実行します。
-サービスプリンシパルで実装した場合に加えて極めてシンプルになっており、シークレットのような機微な情報をハンドルする必要もないことがわかります。
+サービスプリンシパルで実装した場合に比べて極めてシンプルになっており、シークレットのような機微な情報をハンドルする必要もないことがわかります。
 
 ```powershell
 PS> ＃認証キャッシュのクリア
@@ -237,7 +237,7 @@ PS> #自動化したい処理の実装前
 
 ### アクセストークンをそのまま利用するパターン
 
-前述の PowerShell の例では `Connect-AzAccount` の `-Ientity` オプションを指定することで暗黙的にアクセストークンが取得・利用されていたが、
+前述の PowerShell の例では `Connect-AzAccount` の `-Ientity` オプションを指定することで暗黙的にアクセストークンが取得・利用されていましたが、
 Azure 仮想マシン内部では実際には [Instance Metadata Serice（IMDS）](https://docs.microsoft.com/ja-jp/azure/virtual-machines/windows/instance-metadata-service)
 を利用しています。
 
