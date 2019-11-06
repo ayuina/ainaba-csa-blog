@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure サーバーレス Web アプリケーション （シンプル版）](https://github.com/ayuina/azure-simple-serverless-webapp/blob/master/README.md)
 - [MCP Certification Map](./mcp-certification-map)
 - [App Service の VNet 統合とサービスエンドポイントを使用した SQL Database へのアクセス制御](./vnet-integ-and-service-endpoint)
 - [Azure Artifacts を使用した Nuget パッケージの管理](./package-management-with-azure-artifacts)
