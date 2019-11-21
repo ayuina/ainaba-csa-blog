@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure Logic Apps の見積もり](./estimate-logicapps-consumption)
 - [Azure サーバーレス Web アプリケーション （シンプル版）](https://github.com/ayuina/azure-simple-serverless-webapp/blob/master/README.md)
 - [MCP Certification Map](./mcp-certification-map)
 - [App Service の VNet 統合とサービスエンドポイントを使用した SQL Database へのアクセス制御](./vnet-integ-and-service-endpoint)
