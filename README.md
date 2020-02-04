@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure Blob を使用した SQL Server から Azure SQL Database Managed Instance へのデータ移行](./sqlserver-backup-restore-azureblob)
 - [Azure Logic Apps の見積もり](./estimate-logicapps-consumption)
 - [Azure サーバーレス Web アプリケーション （シンプル版）](https://github.com/ayuina/azure-simple-serverless-webapp/blob/master/README.md)
 - [MCP Certification Map](./mcp-certification-map)
