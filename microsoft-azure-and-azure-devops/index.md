@@ -34,7 +34,9 @@ DevOps の場合は
 [こちら](https://azure.microsoft.com/ja-jp/services/devops/)
 のページで「無料で始める」をクリックします。
 
-
+|Sign-up Azure|Sign-up DevOps|
+|:-:|:-:|
+|![](./images/signup-azure.png)|![](./images/signup-devops.png)|
 
 ## 管理者
 
@@ -48,6 +50,10 @@ DevOps の管理者は
 [Orgnization Owner](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/change-organization-ownership)
 と呼ばれ、Orgnization 全体に関わる設定を管理したり、Project を作成してその管理者を任命したり、と言う役割を担います。
 
+|Azure の管理者|DevOpsの管理者|
+|:-:|:-:|
+|![](./images/admin-azure.png)|![](./images/admin-devops.png)|
+
 サインアップに使用したアカウントがその後の利用における管理責任者になりますので重要です（もちろん変更は可能ですが）。
 
 ## ユーザー管理
@@ -59,6 +65,10 @@ DevOps も Azure も Azure AD を認証基盤としています。
 [DevOps のテナント設定](https://docs.microsoft.com/ja-jp/azure/devops/organizations/accounts/access-with-azure-ad)
 は前述の Orginization Owner が行います。
 
+|Azure が信頼するテナント|DevOps が信頼するテナント|
+|:-:|:-:|
+|![](./images/aadtenant-azure.png)|![](./images/aadtenant-devops.png)|
+
 ## 権限制御
 
 Azure や DevOps の管理者は、その認証基盤となる Azure AD テナント上で管理されているユーザーに対して、一定のアクセス権を付与することで各々のサービスにおける利用者を管理するわけです。
@@ -69,6 +79,11 @@ Azure では
 DevOps では Orgnization やその配下の Projec、各 Projec 配下の Repos や Boards と言った各種サービスに対する
 [Permission](https://docs.microsoft.com/en-us/azure/devops/organizations/security/permissions-access?view=azure-devops)
 を設定することで、”誰が何をしていいのか” を管理・制御していきます。
+
+|Azure の権限制御|DevOps の権限制御|
+|:-:|:-:|
+|![](./images/rbac-azure.png)|![](./images/rbac-devops.png)|
+
 
 ## シングルサインオン
 
