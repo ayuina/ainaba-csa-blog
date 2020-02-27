@@ -152,7 +152,7 @@ DevOps の場合は前述の [Azure CLI の Extentision](https://docs.microsoft.
 
 ## シングルサインオン
 
-Azure や DevOps が信頼するテナントが同一であり、利用者が双方に対して RBAC および Permision による権限ふよがされている場合には、シングルサインオンで利用できるので便利です。
+Azure や DevOps が信頼するテナントが同一であり、利用者が双方に対して RBAC および Permision による権限が付与されている場合には、シングルサインオンで利用できるので便利です。
 
 ![](./images/single-signon.png)
 
@@ -194,7 +194,7 @@ Repos 上で管理されたソースコードを、Pipeline Agent がビルド�
 実際にこの Pipeline が動作して Azure の API を呼び出すときにはユーザーの資格情報を使うことはできません。
 
 Azure Pipeline に限りませんが、このような「Azure を外部のアプリケーション等から無人操作する」ケースでは、
-- Azure AD に(ユーザーではなく)[Servic Principal](https://docs.microsoft.com/ja-jp/azure/active-directory/develop/howto-create-service-principal-portal)を作成
+- Azure AD にユーザーではなく[Servic Principal](https://docs.microsoft.com/ja-jp/azure/active-directory/develop/howto-create-service-principal-portal)を作成（アプリ登録）
 - その Service Principal に操作対象となるサブスクリプションやリソース/リソースグループに対して適切な RBAC ロールを割り当てておく
 - 外部アプリケーションはその Service Principal のクレデンシャルを使用して Azure AD で認可を受け Azure の API を操作する
 という構成をします。
@@ -207,5 +207,39 @@ Azure Pipeline ではこの Service Principal の認証情報を
 
 ![](./images/devops-to-azure.png)
 
+なお、Azure と DevOps をシングルサインオンできる状態で Azure 接続用の Service Connection を作成しようとすると、前述の３ステップを全自動でやってくれるので便利です。
+ただ多くの企業ユーザーの場合、１つ目のステップで必要な権限（Azure AD へのアプリ登録）が与えられておらず、失敗することが多いようです。
+この場合は Azure AD の管理権限を持ってい人にお願いして、サービスプリンシパルの作成とその情報の払い出してもらってください。
+その情報を元に RBAC の設定や Service Connection の作成作業を行うことができます。
+
 ## ネットワーク
+
+DevOps は物理的には Azure データセンター上で運用されている SaaS サービスと捉えると、Azure から見れば１つのユーザーテナントであると言えます。
+つまり DevOps と Azure 間で発生する通信は 
+[Azure グローバル ネットワーク](https://azure.microsoft.com/ja-jp/global-infrastructure/global-network/)
+内部で完結し、パブリック IP アドレスを使用しますが、公衆インターネットを通るわけではありません。
+
+![](./images/devops-azure-network.png)
+
+## プライベートネットワーク内のリソースアクセス
+
+Pipeline でデプロイする先の実行環境がオンプレミスであったり IaaS 仮想マシンであるよう場合、パブリック IP アドレス空間からはそもそも到達不可能であるケースが多いと思います。
+この場合はオンプレミスサーバーや仮想マシンの中で Pipeine の実行処理を動作させることが可能です。
+これを [Self-hosted Agent](https://docs.microsoft.com/en-us/azure/devops/pipelines/agents/agents?view=azure-devops) と呼びますが、
+要は Pipeline Agent と呼ばれるソフトウェアが動作する普通のサーバー、PC、あるいは Docker コンテナです。
+
+この Agent マシンは DevOps Pipeline（Public IP） への送信接続を行いますので、オンプレミスであればインターネットへの HTTPS 接続ができる必要があります。
+しかし Pipeline から Agent への送信接続は行いませんので、インターネットから当該エージェントマシンへ到達できる必要はありません。
+
+![](./images/deploy-onpremise.png)
+
+## まとめ
+
+まとめるほどの内容でもないのですが。
+- Azure と Azure DevOps は単独で使えますが、組み合わせて使うと便利です
+- 同じ Azure AD テナントを信頼するとシングルサインオンで便利ですが、共有なのはユーザー情報だけで、権限制御は個別に行ってください
+- どちらも無料で始められるので、まずはお試しください
+
+
+
 
