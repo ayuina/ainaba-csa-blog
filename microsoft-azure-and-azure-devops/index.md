@@ -190,11 +190,11 @@ Repos 上で管理されたソースコードを、Pipeline Agent がビルド�
 このパイプラインを構成するのは Azure Pipeline に対して適切な Permission および Access Level を持つユーザーではあるのですが、
 実際にこの Pipeline が動作して Azure の API を呼び出すときにはユーザーの資格情報を使うことはできません。
 
-Azure Pipeline に限りませんが、このような「Azure を外部のアプリケーション等から無人操作する」ケースでは、
+Azure Pipeline に限りませんが、このような「Azure を外部のアプリケーション等から無人操作する」ケースでは、以下のような構成が必要です。
+
 - Azure AD にユーザーではなく[Servic Principal](https://docs.microsoft.com/ja-jp/azure/active-directory/develop/howto-create-service-principal-portal)を作成（アプリ登録）
 - その Service Principal に操作対象となるサブスクリプションやリソース/リソースグループに対して適切な RBAC ロールを割り当てておく
 - 外部アプリケーションはその Service Principal のクレデンシャルを使用して Azure AD で認可を受け Azure の API を操作する
-という構成をします。
 
 Azure Pipeline ではこの Service Principal の認証情報を
 [Service Connection](https://docs.microsoft.com/en-us/azure/devops/pipelines/library/connect-to-azure?view=azure-devops)
