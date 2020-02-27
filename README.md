@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Microsoft Azure と Azure DevOps Service で区別しておきたいこと](./microsoft-azure-and-azure-devops)
 - [Azure Blob を使用した SQL Server から Azure SQL Database Managed Instance へのデータ移行](./sqlserver-backup-restore-azureblob)
 - [Azure Logic Apps の見積もり](./estimate-logicapps-consumption)
 - [Azure サーバーレス Web アプリケーション （シンプル版）](https://github.com/ayuina/azure-simple-serverless-webapp/blob/master/README.md)
