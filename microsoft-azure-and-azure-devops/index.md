@@ -153,11 +153,11 @@ Azure や DevOps が信頼するテナントが同一であり、利用者が双
 
 ![](./images/single-signon.png)
 
-ただ便利と言うだけで、必須というわけではありません。
-Azure と DevOps が信頼するテナントが別あっても構いませんが、その場合は利用者はアクセスするサービスごとに認証情報を切り替えるか、
-[Azure AD B2B](https://docs.microsoft.com/ja-jp/azure/active-directory/b2b/) の機能を使用することでテナントを横断したシングルサインオンを行います。
-特に後者の B2B を利用するパターンは、自信が所属する組織ではない「外部の組織の DevOps Orgnization」にアクセスする際に便利です。
-
+ただ便利と言うだけで必須というわけではなく、Azure と DevOps がそれぞれ信頼するテナントが別であっても構いません。
+その場合は利用者はアクセスするサービスごとに認証情報を切り替える必要があります。
+あるいは [Azure AD B2B](https://docs.microsoft.com/ja-jp/azure/active-directory/b2b/) の機能を使用することで、
+テナントを横断したシングルサインオンを行うことも可能です。
+特に後者の B2B を利用するパターンは、自信が所属する組織ではない「外部の組織の DevOps Orgnization」にアクセスする際に便利ですので覚えておいてください。
 
 ## 料金の支払い
 
