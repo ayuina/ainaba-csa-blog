@@ -66,10 +66,12 @@ DevOps の場合は
 |:-:|:-:|
 |![](./images/signup-azure.png)|![](./images/signup-devops.png)|
 
+サインアップ（≒利用開始の契約手続き）の流れは若干似ていて、まずは利用者のサインイン（≒本人性の確認）が求められます。
+マイクロソフトアカウント、ないしは Azure Active Directory の組織アカウントでサインインして手続きを進めます。
+
 ## 管理者
 
-サインアップ（≒利用開始の契約手続き）の流れは若干似ていて、まずは利用者のサインイン（≒本人性の確認）が求められます。
-ここではマイクロソフトアカウント、ないしは Azure Active Directory の組織アカウントでサインインします。
+サインアップに使用したアカウントがその後の利用における管理者になりますので重要です（あとで変更することも可能ですが）。
 
 Azure の管理者は
 [Account Admin](https://docs.microsoft.com/ja-jp/azure/cost-management-billing/manage/account-admin-tasks)
@@ -82,7 +84,6 @@ DevOps の管理者は
 |:-:|:-:|
 |![](./images/admin-azure.png)|![](./images/admin-devops.png)|
 
-サインアップに使用したアカウントがその後の利用における管理責任者になりますので重要です（もちろん変更は可能ですが）。
 特に企業や組織で業務用途で使うようなケースでは、その管理者の方が退職してサービスが使えなくなるような事態は避けるべきですので、業務用途であれば Azure Active Directory をお勧めします。
 以降では Azure AD を前提として話を進めます。
 
@@ -132,8 +133,8 @@ DevOps にあって Azure にはない概念としてユーザーライセンス
 
 ## ポータル
 
-利用者が DevOps のポータル [dev.azure.com](https://dev.azure.com)  
-にアクセスするとサインインが求められ、その利用者が Permission を付与されている Orgnization や Project にアクセスできます。
+利用者が DevOps のポータル [dev.azure.com](https://dev.azure.com) にアクセスするとサインインが求められ、
+その利用者が Permission を付与されている Orgnization や Project にアクセスできます。
 Azure のポータル [portal.azure.com](https://portal.azure.com) 
 にアクセスするとサインインが求められ、その利用者が RBAC を付与されているサブスクリプションやリソースにアクセスできます。
 
