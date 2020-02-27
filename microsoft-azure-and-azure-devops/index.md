@@ -198,7 +198,9 @@ Azure Pipeline に限りませんが、このような「Azure を外部のア�
 
 Azure Pipeline ではこの Service Principal の認証情報を
 [Service Connection](https://docs.microsoft.com/en-us/azure/devops/pipelines/library/connect-to-azure?view=azure-devops)
-として管理することができます。
+として管理することで、 Pipeline から安全に利用することができます。
+間違ってもパイプライン定義の中にクレデンシャル情報を埋め込まないようにしてください。
+
 この Service Principal は操作対象となる Azure サブスクリプションが信頼するテナント上のオブジェクトである必要がありますが、
 これは必ずしも DevOps Orgnization が信頼するテナントと同一である必要はありませんし、前述の支払いで紐つけたサブスクリプションである必要もありません。
 
