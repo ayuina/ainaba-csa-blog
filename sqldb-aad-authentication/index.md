@@ -40,7 +40,7 @@ using Microsoft.Data.SqlCient
 public SqlConnection CreateSqlAuthConnection()
 {
     var constr = "Server=tcp:servername.database.windows.net,1433;Initial Catalog=dbname;"
-               + "User ID=sqluserName;Password=yourPassword;"
+               + "User ID=sqluserName;Password=yourPassword;";
     return new SqlConnection(constr);
 }
 ```
@@ -57,6 +57,8 @@ public SqlConnection CreateSqlAuthConnection()
 
 例えば以下のようなユーザーを作成したとします。
 
+|項目|値|
+|---|---|
 |ユーザー名|sqladmin@tenantname.onmicrosoft.com|
 |パスワード|P@ssw0rd!|
 
@@ -88,6 +90,8 @@ select suser_name()
 先ほど登録した管理ユーザでは権限が強すぎますので、実際の保守・運用に使用するユーザーは別途登録すると良いでしょう。
 例えば先ほどと同様の手順で以下のようなユーザーを Azure AD に作成したとします。
 
+|項目|値|
+|---|---|
 |ユーザー名|sqlapp@tenantname.onmicrosoft.com|
 |パスワード|P@ssw0rd!|
 
@@ -111,6 +115,8 @@ ALTER ROLE db_owner ADD MEMBER [sqlapp@tenantname.onmicrosoft.com];
 接続文字列で認証種別 `Authentication` として `Active Directory Password` を使用しています。 
 
 ```csharp
+using Microsoft.Data.SqlClient;
+
 public SqlConnection CreateAadUserConnection()
 {
     var constr = "Server=tcp:servername.database.windows.net,1433;Initial Catalog=dbname;"
@@ -136,32 +142,125 @@ public SqlConnection CreateAadUserConnection()
 - `サインインするための値を取得する` でディレクトリ ID とアプリケーション ID を控える
 - `新しいアプリケーション シークレットを作成する` で作成したシークレットを控える
 
+|項目|値|
+|---|---|
 |クライアント名 |sqlapp_sp|
 |アプリケーション ID|guid-of-your-application-id|
 |ディレクトリ ID|guid-of-your-azuread-directory-id|
 |クライアントシークレット|key-secret-generated|
 
-このサービスプリンシパルの情報を用いると Azure AD で認証を受けることはできますが、SQL Database へのアクセス権がありませんので、
-先ほどの管理ユーザーの Azure Data Studio の画面で以下のクエリを実行します。
+![azure-ad-service-principal](./images/aad-sp.png)
+
+このサービスプリンシパルの情報を用いると Azure AD で認証を受けることはできますが、このままでは SQL Database にアクセスすることはできません。
+先ほどの管理ユーザーの Azure Data Studio の画面で以下のクエリを実行してユーザーの追加およびデータベースロールへの追加を行います。
 
 ```sql
-CREATE USER [sqlapp@tenantname.onmicrosoft.com] FROM EXTERNAL PROVIDER;
-ALTER ROLE db_owner ADD MEMBER [sqlapp@tenantname.onmicrosoft.com];
+CREATE USER [sqlapp_sp] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_owner ADD MEMBER [sqlapp_sp];
 ```
 
+アプリケーションコードからはサービスプリンシパルの情報を使用してアクセストークンを取得し、そのトークンを SqlConnection オブジェクトにセットすれば接続可能です。
+トークンの取得には 
+[MSAL.NET](https://www.nuget.org/packages/Microsoft.Identity.Client/) 
+ライブラリを使用しますので、以下のコマンドでパッケージ参照を追加してください。
 
-アクセストークンを作成し、そのトークンを SqlConnection オブジェクトにセットすれば接続可能です。
+```bash
+dotnet add package Microsoft.Identity.Client
+```
+
+実際の C# コードは以下のようになります。
+アクセストークンの取得方法は
+[従来の ADAL.NET と現在の MSAL.NET では若干異なります](https://docs.microsoft.com/en-us/azure/active-directory/develop/msal-net-migration)
+のでご注意ください。
+SqlConnection オブジェクトを作成する際に、前述のコードと大きく異なるのは、接続文字列からユーザー ID やパスワードがバッサリなくなっており、代わりにアクセストークンを設定するようになります。
 
 ```csharp
+using Microsoft.Data.SqlClient;
+using Microsoft.Identity.Client;
 
+private static SqlConnection GetAadSpTokenConnection()
+{
+    // Getting Access Token
+    var directoryid = "guid-of-your-azuread-directory-id";
+    var applicatonid = "guid-of-your-application-id";
+    var clientkey = "key-secret-generated";
+    var scopes = new[] { "https://database.windows.net/.default" };
+    var app = ConfidentialClientApplicationBuilder
+                .Create(applicationid)
+                .WithAuthority(new Uri($"https://login.microsoftonline.com/{directoryid}"))
+                .WithClientSecret(clientkey)
+                .Build();
+    var authresult = app.AcquireTokenForClient(scopes).ExecuteAsync().Result;
+
+    // Creating SqlConnection
+    var constr = @"Server=tcp:ainaba-aadauth-sqlsvr.database.windows.net,1433;Initial Catalog=ainaba-aadauth-sqldb;";
+    var connection = new SqlConnection(constr);
+    connection.AccessToken = authresult.AccessToken;
+
+    return connection;
+}
 ```
-
 
 ### システムアサイン管理 ID を使用したトークンの取得とアクセス
 
-- MIDの作成
-- SQL DB のユーザー作成とアクセス権の付与
-- Connection String
+要はアクセストークンが取得できれば良いわけですので、このアプリケーションが Azure 上で動作しているのであれば 
+[マネージド ID](https://docs.microsoft.com/ja-jp/azure/active-directory/managed-identities-azure-resources/overview)
+が使用できます。
+例えば Azure 仮想マシンであれば下記のようにシステム割り当てマネージド ID を有効にすると、仮想マシンと同名のアプリケーションが自動的に登録され、サービスプリンシパルも作成されます。
+
+|システム割り当てマネージド ID|サービスプリンシパル|
+|:---:|:---:|
+|![](./images/vm-samid.png)|![](./images/vm-samid-sp.png)|
+
+このサービスプリンシパルを SQL DB のユーザーとして追加し、データベースロールに追加すれば良いわけです。
+
+```sql
+CREATE USER [virtual-machine-name] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_owner ADD MEMBER [virtual-machine-name];
+```
+
+仮想マシン内で SQL DB 用のアクセストークンを取得し、SqlConnection を作成する C# コードは以下のようになります。
+In-VM Meatadata Service へのアクセスには 
+[System.Net.Http](https://docs.microsoft.com/ja-jp/dotnet/api/system.net.http.httpclient?view=netcore-3.1) ライブラリを、
+JSON の処理には 
+[Json.NET](https://www.nuget.org/packages/Newtonsoft.Json/) を使用しています。
+下記のコマンドを使用して Json.NET パッケージの参照を追加してください。
+
+```bash
+dotnet add package Newtonsoft.Json
+```
+
+```csharp
+using Microsoft.Data.SqlClient;
+using System.Net.Http;
+using Newtonsoft.Json.Linq;
+
+private static SqlConnection GetSystemAssignedManagedIdTokenConnection()
+{
+    //Getting Access Token
+    var token = null;
+    using (var hc = new HttpClient())
+    {
+        var resourceuri = "https%3A%2F%2Fdatabase.windows.net%2F";
+        var imds = $"http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource={resourceuri}";
+        hc.DefaultRequestHeaders.Add("Metadata", "true");
+        var ret = hc.GetStringAsync(imds).Result;
+        dynamic j = JObject.Parse(ret);
+        token = j["access_token"].ToString();
+    }
+
+    //Creating SqlConnection Object
+    var constr = @"Server=tcp:ainaba-aadauth-sqlsvr.database.windows.net,1433;Initial Catalog=ainaba-aadauth-sqldb;";
+    var connection = new SqlConnection(constr);
+    connection.AccessToken = token;
+    return connection;
+}
+
+```
+
+参考情報
+: [チュートリアル:Windows VM のシステム割り当てマネージド ID を使用して Azure SQL にアクセスする](https://docs.microsoft.com/ja-jp/azure/active-directory/managed-identities-azure-resources/tutorial-windows-vm-access-sql)
+: [Azure VM 上で Azure リソースのマネージド ID を使用してアクセス トークンを取得する方法](https://docs.microsoft.com/ja-jp/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token)
 
 ### ユーザー割り当て管理 ID を使用したトークンの取得とアクセス
 
