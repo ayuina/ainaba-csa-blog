@@ -129,7 +129,7 @@ public SqlConnection CreateAadUserConnection()
 
 前述の方法では GUI はともかくとして、アプリケーションが誰かのユーザー ID を使用して SQL DB にアクセスし続けることになりますので、
 パスワードが変更された場合は多要素認証が有効になっている場合には不便でしょう。
-せっかく Azure AD 認証を使用しているのでアプリケーションようのアクセストークンを使用したいところです。
+せっかく Azure AD 認証を使用しているのでアプリケーション用のアクセストークンを使用したいところです。
 
 ### サービスプリンシパルとキーを使用したトークンの取得とアクセス
 
@@ -142,6 +142,8 @@ public SqlConnection CreateAadUserConnection()
 - `サインインするための値を取得する` でディレクトリ ID とアプリケーション ID を控える
 - `新しいアプリケーション シークレットを作成する` で作成したシークレットを控える
 
+ここでは以下のような内容で作成したとします。
+
 |項目|値|
 |---|---|
 |クライアント名 |sqlapp_sp|
@@ -153,6 +155,7 @@ public SqlConnection CreateAadUserConnection()
 
 このサービスプリンシパルの情報を用いると Azure AD で認証を受けることはできますが、このままでは SQL Database にアクセスすることはできません。
 先ほどの管理ユーザーの Azure Data Studio の画面で以下のクエリを実行してユーザーの追加およびデータベースロールへの追加を行います。
+ポイントは登録したアプリケーションの名前を使用するところくらいでしょうか。
 
 ```sql
 CREATE USER [sqlapp_sp] FROM EXTERNAL PROVIDER;
@@ -200,6 +203,8 @@ private static SqlConnection GetAadSpTokenConnection()
     return connection;
 }
 ```
+
+かなりゴチャゴチャしてますね。
 
 ### システムアサイン管理 ID を使用したトークンの取得とアクセス
 
@@ -258,6 +263,8 @@ private static SqlConnection GetSystemAssignedManagedIdTokenConnection()
 
 ```
 
+Azure AD 用のライブラリを使用したコードではなくなっただけで、あまり複雑さは変わりませんね。
+
 ### システムアサイン管理 ID を使用したトークンの取得とアクセス（その２）
 
 マネージド ID を使用したトークン取得コードは
@@ -296,8 +303,8 @@ private static SqlConnection GetMiTokenConnection2()
 トークンを取得するためのコードがかなりすっきりしました。
 
 参考情報
-: [チュートリアル:Windows VM のシステム割り当てマネージド ID を使用して Azure SQL にアクセスする](https://docs.microsoft.com/ja-jp/azure/active-directory/managed-identities-azure-resources/tutorial-windows-vm-access-sql)
-: [Azure VM 上で Azure リソースのマネージド ID を使用してアクセス トークンを取得する方法](https://docs.microsoft.com/ja-jp/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token)
+- [チュートリアル:Windows VM のシステム割り当てマネージド ID を使用して Azure SQL にアクセスする](https://docs.microsoft.com/ja-jp/azure/active-directory/managed-identities-azure-resources/tutorial-windows-vm-access-sql)
+- [Azure VM 上で Azure リソースのマネージド ID を使用してアクセス トークンを取得する方法](https://docs.microsoft.com/ja-jp/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token)
 
 ### ユーザー割り当て管理 ID を使用したトークンの取得とアクセス
 
@@ -305,12 +312,30 @@ private static SqlConnection GetMiTokenConnection2()
 - SQL DB のユーザー作成とアクセス権の付与
 - Connection String
 
+
 ## 備考
 
 ### 発行されたトークンの確認
 
+https://jwt.ms
+
 ### グループ登録によるアクセス権限
 
+### SQL Database で各ロールに割り当てられているユーザーを確認する
+
+いろいろ設定してきましたが、以下のクエリを実行すると各ユーザーやアプリケーションに設定したデータベースロールが確認できます。
+
+```sql
+SELECT DP1.name AS DatabaseRoleName, 
+isnull (DP2.name, 'No members') AS DatabaseUserName 
+FROM sys.database_role_members AS DRM 
+RIGHT OUTER JOIN sys.database_principals AS DP1 
+ON DRM.role_principal_id = DP1.principal_id 
+LEFT OUTER JOIN sys.database_principals AS DP2 
+ON DRM.member_principal_id = DP2.principal_id 
+WHERE DP1.type = 'R'
+ORDER BY DP1.name; 
+```
 
 
 ## まとめ
