@@ -283,10 +283,8 @@ dotnet add package Microsoft.Azure.Services.AppAuthentication
 using Microsoft.Data.SqlClient;
 using Microsoft.Azure.Services.AppAuthentication;
 
-private static SqlConnection GetMiTokenConnection2()
+private static SqlConnection GetSystemAssignedManagedIdTokenConnection2()
 {
-    Console.WriteLine("Creating SQL Auth Connection for System Assigned Managed Identity by Microsoft.Azure.Services.AppAuthentication ");
-
     //Getting Access Token
     var provider = new AzureServiceTokenProvider();
     var token = provider.GetAccessTokenAsync("https://database.windows.net/").Result;
