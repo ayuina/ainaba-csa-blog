@@ -258,6 +258,43 @@ private static SqlConnection GetSystemAssignedManagedIdTokenConnection()
 
 ```
 
+### システムアサイン管理 ID を使用したトークンの取得とアクセス（その２）
+
+マネージド ID を使用したトークン取得コードは
+[Microsoft.Azure.Services.AppAuthentication](https://www.nuget.org/packages/Microsoft.Azure.Services.AppAuthentication)
+ライブラリを使用するとより簡便に記述することができます。
+
+まずは下記のコマンドでパッケージを追加します。
+
+```bash
+dotnet add package Microsoft.Azure.Services.AppAuthentication
+```
+
+次に `AzureServiceTokenProvider` クラスを使用してアクセストークンを取得、SqlConnection オブジェクトにセットします。
+
+```csharp
+using Microsoft.Data.SqlClient;
+using Microsoft.Azure.Services.AppAuthentication;
+
+private static SqlConnection GetMiTokenConnection2()
+{
+    Console.WriteLine("Creating SQL Auth Connection for System Assigned Managed Identity by Microsoft.Azure.Services.AppAuthentication ");
+
+    //Getting Access Token
+    var provider = new AzureServiceTokenProvider();
+    var token = provider.GetAccessTokenAsync("https://database.windows.net/").Result;
+
+    //Creating SQL Connection
+    var constr = @"Server=tcp:ainaba-aadauth-sqlsvr.database.windows.net,1433;Initial Catalog=ainaba-aadauth-sqldb;";
+    var connection = new SqlConnection(constr);
+    connection.AccessToken = token;
+
+    return connection;
+}
+```
+
+トークンを取得するためのコードがかなりすっきりしました。
+
 参考情報
 : [チュートリアル:Windows VM のシステム割り当てマネージド ID を使用して Azure SQL にアクセスする](https://docs.microsoft.com/ja-jp/azure/active-directory/managed-identities-azure-resources/tutorial-windows-vm-access-sql)
 : [Azure VM 上で Azure リソースのマネージド ID を使用してアクセス トークンを取得する方法](https://docs.microsoft.com/ja-jp/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token)
