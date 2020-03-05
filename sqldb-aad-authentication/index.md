@@ -94,15 +94,15 @@ select suser_name()
 
 |項目|値|
 |---|---|
-|ユーザー名|sqlapp@tenantname.onmicrosoft.com|
+|ユーザー名|sqluser@tenantname.onmicrosoft.com|
 |パスワード|P@ssw0rd!|
 
 この Azure AD ユーザーを SQL DB のユーザーとして登録し、かつ、データベースロールのメンバーに追加することで、実際のアクセスが可能になります。
 先ほどの管理ユーザーの Azure Data Studio の画面で以下のクエリを実行します。
 
 ```sql
-CREATE USER [sqlapp@tenantname.onmicrosoft.com] FROM EXTERNAL PROVIDER;
-ALTER ROLE db_owner ADD MEMBER [sqlapp@tenantname.onmicrosoft.com];
+CREATE USER [sqluser@tenantname.onmicrosoft.com] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_owner ADD MEMBER [sqluser@tenantname.onmicrosoft.com];
 ```
 
 ポイントは以下のようになります。
@@ -122,7 +122,7 @@ using Microsoft.Data.SqlClient;
 public SqlConnection CreateAadUserConnection()
 {
     var constr = "Server=tcp:servername.database.windows.net,1433;Initial Catalog=dbname;"
-               + "Authentication=Active Directory Password;User ID=sqlapp@tenantname.onmicrosoft.com;Password=P@ssw0rd!";
+               + "Authentication=Active Directory Password;User ID=sqluser@tenantname.onmicrosoft.com;Password=P@ssw0rd!";
     return new SqlConnection(constr);
 }
 ```

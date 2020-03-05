@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure SQL Database の Azure Active Directory 認証](./sqldb-aad-authentication)
 - [Microsoft Azure と Azure DevOps Service で区別しておきたいこと](./microsoft-azure-and-azure-devops)
 - [Azure Blob を使用した SQL Server から Azure SQL Database Managed Instance へのデータ移行](./sqlserver-backup-restore-azureblob)
 - [Azure Logic Apps の見積もり](./estimate-logicapps-consumption)
