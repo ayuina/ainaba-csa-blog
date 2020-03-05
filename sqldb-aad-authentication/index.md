@@ -11,6 +11,8 @@ title: Azure SQL Database の Azure Active Directory 認証
 [こちら](https://docs.microsoft.com/en-us/azure/sql-database/sql-database-aad-authentication-configure)
 のドキュメントなども参考になります。
 
+![overview](./images/overview.png)
+
 ## Azure SQL Database の作成
 
 まず初めに
@@ -127,8 +129,7 @@ public SqlConnection CreateAadUserConnection()
 
 ## Azure AD アプリケーションによる SQL Database へのアクセス
 
-前述の方法では GUI はともかくとして、アプリケーションが誰かのユーザー ID を使用して SQL DB にアクセスし続けることになりますので、
-パスワードが変更された場合は多要素認証が有効になっている場合には不便でしょう。
+前述の方法では GUI はともかくとして、アプリケーションが誰かのユーザー ID を使用して SQL DB にアクセスし続けることになります。
 せっかく Azure AD 認証を使用しているのでアプリケーション用のアクセストークンを使用したいところです。
 
 ### サービスプリンシパルとキーを使用したトークンの取得とアクセス
