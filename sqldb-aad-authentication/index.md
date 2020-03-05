@@ -206,7 +206,7 @@ private static SqlConnection GetAadSpTokenConnection()
 
 かなりゴチャゴチャしてますね。
 
-### システムアサイン管理 ID を使用したトークンの取得とアクセス
+### システム アサイン マネージド ID を使用したトークンの取得とアクセス
 
 要はアクセストークンが取得できれば良いわけですので、このアプリケーションが Azure 上で動作しているのであれば 
 [マネージド ID](https://docs.microsoft.com/ja-jp/azure/active-directory/managed-identities-azure-resources/overview)
@@ -265,7 +265,7 @@ private static SqlConnection GetSystemAssignedManagedIdTokenConnection()
 
 Azure AD 用のライブラリを使用したコードではなくなっただけで、あまり複雑さは変わりませんね。
 
-### システムアサイン管理 ID を使用したトークンの取得とアクセス（その２）
+### システム アサイン マネージド ID を使用したトークンの取得とアクセス（その２）
 
 マネージド ID を使用したトークン取得コードは
 [Microsoft.Azure.Services.AppAuthentication](https://www.nuget.org/packages/Microsoft.Azure.Services.AppAuthentication)
@@ -304,20 +304,85 @@ private static SqlConnection GetSystemAssignedManagedIdTokenConnection2()
 - [チュートリアル:Windows VM のシステム割り当てマネージド ID を使用して Azure SQL にアクセスする](https://docs.microsoft.com/ja-jp/azure/active-directory/managed-identities-azure-resources/tutorial-windows-vm-access-sql)
 - [Azure VM 上で Azure リソースのマネージド ID を使用してアクセス トークンを取得する方法](https://docs.microsoft.com/ja-jp/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token)
 
-### ユーザー割り当て管理 ID を使用したトークンの取得とアクセス
+### ユーザー割り当てマネージド ID を使用したトークンの取得とアクセス
 
-- UAIDの作成
-- SQL DB のユーザー作成とアクセス権の付与
-- Connection String
+もちろん 
+[ユーザー割り当てマネージド ID ](https://docs.microsoft.com/ja-jp/azure/active-directory/managed-identities-azure-resources/how-to-manage-ua-identity-portal) 
+を使用することも可能です。
+ここでは以下のようなユーザー割り当てマネージド ID を作成したとして、生成されたクライアント ID を控えておきます。
 
+|項目|値|
+|---|---|
+|クライアント名 |sqlapp_uamid|
+|クライアント ID|guid-of-your-client-id|
+
+作成したユーザー割り当てマネージド ID をAzure 仮想マシンに割り当てます。
+
+|ユーザー割り当てマネージド ID|仮想マシンへの割り当て|
+|:---:|:---:|
+|![](./images/uamid.png)|![](./images/vm-uamid.png)|
+
+ユーザー割り当てマネージド ID を作成した時点で、同じ名前のサービスプリンシパルが作成されていますので、こちらも SQL DB へユーザー登録し、データベースロールを割り当てます。
+
+```sql
+CREATE USER [sqlapp_uamid] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_owner ADD MEMBER [sqlapp_uamid];
+```
+
+アプリケーションコードはシステム割り当てマネージド ID の場合とほぼ同じですが、アクセストークンの取得の際にクライアント ID を明示する必要がある点が異なります。
+
+```csharp
+using Microsoft.Data.SqlClient;
+using System.Net.Http;
+using Newtonsoft.Json.Linq;
+
+private static SqlConnection GetSystemAssignedManagedIdTokenConnection()
+{
+    //Getting Access Token
+    var token = null;
+    using (var hc = new HttpClient())
+    {
+        var clientid = "84e1ca01-c997-49df-8811-76934b2a05e0";
+        var resourceuri = "https%3A%2F%2Fdatabase.windows.net%2F";
+        var imds = $"http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource={resourceuri}&client_id={clientid}";
+        hc.DefaultRequestHeaders.Add("Metadata", "true");
+        var ret = hc.GetStringAsync(imds).Result;
+        dynamic j = JObject.Parse(ret);
+        token = j["access_token"].ToString();
+    }
+
+    //Creating SqlConnection Object
+    var constr = @"Server=tcp:ainaba-aadauth-sqlsvr.database.windows.net,1433;Initial Catalog=ainaba-aadauth-sqldb;";
+    var connection = new SqlConnection(constr);
+    connection.AccessToken = token;
+    return connection;
+}
+
+```
 
 ## 備考
 
+以下は本題ではないですが、知っておくと良いかと思うポイントです。
+
 ### 発行されたトークンの確認
 
-https://jwt.ms
+前述のサンプルコードでは随所でアクセストークンを取得していますが、その中には何が記載されているかは [jwt.ms](https://jwt.ms) で確認することができます。
+
+![access token](./images/access-token.png)
 
 ### グループ登録によるアクセス権限
+
+ここまではユーザーやアプリケーションに対して１つ１つユーザー登録およびデータベースロールの割り当てを行ってきましたが、これでは管理が煩雑になリますし、何よりいちいち SQL Database に接続するのも面倒です。
+ユーザーやアプリは Azure AD グループに追加しておき、SQL DB ではグループに対してデータベースロールの割り当てを行なってしまうのが良いでしょう。
+
+![grouped service principal](./images/aad-grouped.png)
+
+```sql
+CREATE USER [sqlapp-group] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_owner ADD MEMBER [sqlapp-group];
+```
+
+なおこの状態で発行された Access Token の内容を確認すると、groups 属性が含まれていることが確認できます。
 
 ### SQL Database で各ロールに割り当てられているユーザーを確認する
 
