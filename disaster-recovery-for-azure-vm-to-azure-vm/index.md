@@ -12,7 +12,7 @@ Azure を使用したシステムの設計をする際に、まず間違いな�
 
 本ブログでは「Azure 仮想マシンで構成されたシステムの災害対策」において考えられる方法論について整理していきたいと思います。
 端的にいって [Azure Site Recovery](https://docs.microsoft.com/ja-jp/azure/site-recovery/) の話になるわけですが、
-なんでもかんでも Site Recovery というのが必ずしも正解ではないと思いますので、その他の選択肢に触れていきたいと思います。
+なんでもかんでも Site Recovery というのが必ずしも正解ではないと思いますので、その他の選択肢にも触れていきたいと思います。
 
 ## 前提知識
 
@@ -73,7 +73,8 @@ Azure は必ず東日本リージョンに対して西日本リージョン、�
 前述の Azure Backup における注意事項の逆パターンになるわけですが、Azure Site Recovery には以下のメリットがあります。
 
 まず、Recovery Service コンテナの配置先、および仮想マシンのレプリケート先（ターゲット）は、保護対象と[別リージョン](https://docs.microsoft.com/ja-jp/azure/site-recovery/azure-to-azure-support-matrix)です。
-- 保護対象の仮想マシンの配置リージョンが停止していても、Recovery Service コンテナおよびレプリケートされた仮想マシンのディスクは別リージョンで利用可能
+- 保護対象の仮想マシンの配置リージョンが停止していても、Recovery Service コンテナは別リージョンにあるのでフェイルオーバーの指示出しが可能
+- レプリケートされた仮想マシンのディスクは別リージョンで利用可能なので、これを元に仮想マシンが再構築できる
 
 次に、フェイルオーバーのトリガーは **ユーザー手動** であるため、災害復旧に関して Microsoft の判断を待たずにフェイルオーバーする事が可能です。
 - [Azure Site Recovery の SLA](https://azure.microsoft.com/ja-jp/support/legal/sla/site-recovery/)としても仮想マシン単位での目標復旧時間（2時間）が定義されている
