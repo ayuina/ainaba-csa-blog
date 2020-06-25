@@ -94,4 +94,22 @@ Outbound では特に加工など行っていませんので、オリジナル�
 
 ![test-result](./images/test-result.png)
 
+## まとめ
+
+といわけでファイルの一覧を返すだけの API を提供することができました。
+このパターンでは呼び出し元は Blob へのアクセス制御を意識する必要がありませんし、そもそも裏に Blob がいることすらわからない設計にしています。
+システム間連携などのパターンでは、バックエンドで呼び出し元を直接認証するのでは無く、API Management を認証ゲートウェイとする方式も多いかなと思います。
+ご参考になれば幸いです。
+
+## 補足
+
+なお上記では特に記載も紹介もしていませんが、実際には呼び出し元から API Management へのアクセス制限を行う必要があります。
+
+- [サブスクリプション](https://docs.microsoft.com/ja-jp/azure/api-management/api-management-howto-create-subscriptions)の払い出しを制限する
+- [クライアント証明書認証](https://docs.microsoft.com/ja-jp/azure/api-management/api-management-howto-mutual-certificates-for-clients)を要求する
+- 各種の [アクセス制限ポリシー](https://docs.microsoft.com/ja-jp/azure/api-management/api-management-access-restriction-policies) を設定する
+
+などのオプションが考えられます。
+
+
 
