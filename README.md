@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure AD 認証で保護された API を API Management でラップする](./wrapping-azure-service-by-apim)
 - [Azure Virtual Machine のマーケットプレイスイメージのバージョンと構成管理について](./ubuntu2004-marketplace-and-images)
 - [Azure 仮想マシンの広域災害対策](disaster-recovery-for-azure-vm-to-azure-vm)
 - [Azure SQL Database の Azure Active Directory 認証](./sqldb-aad-authentication)
