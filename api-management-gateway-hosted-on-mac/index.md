@@ -168,11 +168,11 @@ curl -k -H "Ocp-Apim-Subscription-Key: your-subscription-key" https://localhost/
 
 先の API 定義を作成した図では `Managed` という Gateway にも API の設定がなされています。
 また Base URL として `https://apim-name.azure-api.net/wf` という公開された URL からアクセスできるようにも見えます。
-ではインターネットから API Management の既定のゲートウェイ経由で私の作業マシンで動作する API が呼び出せてしまいそうで不安になりませんか？
-私はなりました。
-この記事を書くための検証をやろうと思った動機の8割くらいは実はこの不安感だったりします。
+インターネットから API Management の既定のゲートウェイ経由で、私の作業マシン上で動作する API がビシバシ呼び出せそうな期待と不安でいっぱいです。
+私だけでしょうか。
+この記事を書くための検証をやろうと思った動機の8割くらいは実はこの期待と不安だったりします。
 
-なぜ不安になったかと言えば、オンプレミスからの SSL Outboud 接続をトンネルにすることで、ファイアウォールに穴を開けることなくパブリックインターネットからプライベートネットワークへのルーティングを実現する、という仕組みが Azure にはすごく多いんです。
+なぜかと言えば、オンプレミスからの SSL Outboud 接続をトンネルにすることで、ファイアウォールに穴を開けることなくパブリックインターネットからプライベートネットワークへのルーティングを実現する、という仕組みが Azure にはすごく多いんです。
 例えば代表的なものとして以下があげられます。
 
 - Logic Apps や Power BI などで使用される [On-Premises Data Gateway](https://docs.microsoft.com/ja-jp/azure/logic-apps/logic-apps-gateway-install)
@@ -181,8 +181,8 @@ curl -k -H "Ocp-Apim-Subscription-Key: your-subscription-key" https://localhost/
 - Azure Active Directory の [Application Proxy Connector](https://docs.microsoft.com/ja-jp/azure/active-directory/manage-apps/application-proxy)
 - Windows Virtual Desktop の Session Host 上で動作する Agent
 
-また Azure ではないのですが、 Azure Functions のローカル開発の時によく利用する [ngrok](https://ngrok.com/) のような役割もさせられのかしら、という期待もちょっとありました。
-と、さんざんリストアップしてみましたが、
+また Azure ではないのですが、 Azure Functions をローカル開発の時によく利用する [ngrok](https://ngrok.com/) のような役割もさせられのかしら、という期待もありました。
+と、さんざんリストアップしておいてアレですが、
 [Self-Hosted Gateway のドキュメント](https://docs.microsoft.com/ja-jp/azure/api-management/self-hosted-gateway-overview)
 には以下のようにあります。
 
