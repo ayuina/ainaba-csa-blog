@@ -1,7 +1,7 @@
 ## ainaba's blog
 
 ### コンテンツ
-
+- [API Management Self-Hosted Gateway を Mac で試す](./api-management-gateway-hosted-on-mac)
 - [Azure AD 認証で保護された API を API Management でラップする](./wrapping-azure-service-by-apim)
 - [Azure Virtual Machine のマーケットプレイスイメージのバージョンと構成管理について](./ubuntu2004-marketplace-and-images)
 - [Azure 仮想マシンの広域災害対策](disaster-recovery-for-azure-vm-to-azure-vm)
