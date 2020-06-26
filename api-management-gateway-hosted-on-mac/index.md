@@ -186,10 +186,10 @@ curl -k -H "Ocp-Apim-Subscription-Key: your-subscription-key" https://localhost/
 [Self-Hosted Gateway のドキュメント](https://docs.microsoft.com/ja-jp/azure/api-management/self-hosted-gateway-overview)
 には以下のようにあります。
 
-> 1 分ごとのハートビート メッセージ送信による状態の報告
-> 構成の更新の、定期的チェック (10 秒ごと) と、入手可能な場合は常に実行する適用
-> 要求ログとメトリックの Azure Monitor への送信 (これを行うよう構成されている場合)
-> Application Insights へのイベントの送信 (これを行うよう設定されている場合)
+> - 1 分ごとのハートビート メッセージ送信による状態の報告
+> - 構成の更新の、定期的チェック (10 秒ごと) と、入手可能な場合は常に実行する適用
+> - 要求ログとメトリックの Azure Monitor への送信 (これを行うよう構成されている場合)
+> - Application Insights へのイベントの送信 (これを行うよう設定されている場合)
 
 管理・監視系以外の用途には使ってないということで一安心。
 （最初にドキュメントをちゃんと読めということですね orz）
