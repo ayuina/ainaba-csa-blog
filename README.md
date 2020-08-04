@@ -1,6 +1,7 @@
 ## ainaba's blog
 
 ### コンテンツ
+- [Visusl Studio Codespaces とコンテナ技術を活用したリモート開発](https://github.com/ayuina/dotnetcore-devenv1/blob/master/README.md)
 - [API Management Self-Hosted Gateway を Mac で試す](./api-management-gateway-hosted-on-mac)
 - [Azure AD 認証で保護された API を API Management でラップする](./wrapping-azure-service-by-apim)
 - [Azure Virtual Machine のマーケットプレイスイメージのバージョンと構成管理について](./ubuntu2004-marketplace-and-images)
