@@ -88,3 +88,6 @@ Azure でシステムを構築していると、なんだかんだで「オン�
 |リソース名が表示されている|Azure|普通の Azure 仮想マシン|
 |リソース名が表示されていない|Azure 以外|Azure Arc に登録されていないサーバー|
 
+この状態で Arc サーバーの画面に戻ると下記のように不足している更新プログラムやその適用などができるようになります。
+
+![arc server update management](./images/arc-update-management.png)
