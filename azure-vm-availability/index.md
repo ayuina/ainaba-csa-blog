@@ -226,7 +226,7 @@ Azure インフラストラクチャに対して「これらの仮想サーバ�
 また Azure インフラストラクチャに大して「これらの仮想サーバーは別々のデータセンターにデプロイして、単一障害点を持たないようにしてね」と教えてあげるためのオプションを「可用性ゾーン(Availability Zone)」と呼びます。
 可用性ゾーンに関しては下記が詳しいのでご参照ください。
 
-- [https://docs.microsoft.com/ja-jp/azure/availability-zones/az-overview](https://docs.microsoft.com/ja-jp/azure/availability-zones/az-overview)
+- [Azure のリージョンと Availability Zones](https://docs.microsoft.com/ja-jp/azure/availability-zones/az-overview)
 
 可用性セットは Azure の全てのリージョンで必ず利用できますが、可用性ゾーンはサービス提供が一部のリージョンに限られます。
 利用したいリージョンで可用性ゾーンを使用できない場合は、可用性セットを利用するか（この記事では紹介しませんが）ペアリージョンを利用したシステムを設計いただければと思います。
