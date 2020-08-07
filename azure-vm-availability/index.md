@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Azure 仮想マシンにおける可用性の考え方
+title: Azure 仮想マシンにおける可用性の考え方(2020)
 ---
 
 ## はじめに
