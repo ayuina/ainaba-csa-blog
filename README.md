@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [PowerApps キャンパスアプリのボタン押下時の処理と結果の反映](./powerapp-campus-submit-button)
 - [Azure Arc for Server で出来ること](./what-you-can-do-with-azurearc)
 - [Azure 仮想マシンにおける可用性の考え方(2020)](./azure-vm-availability)
 - [Visusl Studio Codespaces とコンテナ技術を活用したリモート開発](https://github.com/ayuina/dotnetcore-devenv1/blob/master/README.md)
@@ -22,7 +23,6 @@
 - [Azure Monitor Log を使用したオンプレ環境のログ収集と解析](./log-analysis-on-premise)
 - [.NET Core アプリの構成設定について](./dotnet-core-configuration)
 - [Azure PowerShell で自動化する時に使用する Identity について](./azure-powershell-automation)
-
 
 ### 以前の Blog について
 
