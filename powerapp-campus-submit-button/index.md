@@ -38,7 +38,7 @@ Windows Form でアプリケーションを作っていた方は、テキスト�
 表示したいラベルからはこの変数 `textbuffer` にバインドしておけば、変数の値が変更されると同時に表示がアップデートされるわけです。
 この方式であれば API 呼び出しのタイミングや、送信前のデータチェックと確認などが実装しやすいのではないでしょうか。
 
-![how to submit text](./images/submit-text-settng.png)
+![how to submit text](./images/submit-text-setting.png)
 
 ちなみにこのアプローチ、Excel では確か出来なかったと思います。
 変数を挟む処理自体は VBA マクロを使えば可能なはずですが、セルから VBA 上の変数にバインドって出来るんだろうか・・・。
