@@ -23,7 +23,6 @@
 - [.NET Core アプリの構成設定について](./dotnet-core-configuration)
 - [Azure PowerShell で自動化する時に使用する Identity について](./azure-powershell-automation)
 
-
 ### 以前の Blog について
 
 以前は [こちら](https://blogs.msdn.microsoft.com/ainaba-csa/) で書いていましたが、順次こちらに移行しています。
