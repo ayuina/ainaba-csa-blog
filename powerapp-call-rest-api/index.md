@@ -163,14 +163,15 @@ public IEnumerable<WeatherForecast> Get()
 ## Web API を実行環境にホストする
 
 それでは作成した Web API を Azure Web Apps でホストしてみましょう。
-ポータルでポチポチ作成してももちろん構いませんが、ここでもコマンドラインで実行していきます。
+ポータルでポチポチ作成してももちろん構いませんが、ここでもコマンドラインから
+[Azure CLI](https://docs.microsoft.com/ja-jp/cli/azure/?view=azure-cli-latest) を呼び出して作成していきます。
 
 ```bash
-# Azure CLI からログインして使用するサブスクリプションを選択
+# Azure にログインして使用するサブスクリプションを選択
 az login 
 az account set --subscription guid-of-your-subscription
 
-# Web App を作成する（リソース名などは適宜書き換えてください）
+# Web App を作成する（リソース名などは適宜書き換え）
 az group create --name powerapp-customapi-demo-rg --location WestUS2
 az appservice plan create --name mypowerapp-customapi-plan --resource-group powerapp-customapi-demo-rg
 az webapp create --name mypowerapp-customapi --plan mypowerapp-customapi-plan --resource-group powerapp-customapi-demo-rg --runtime "DOTNETCORE|3.1"
@@ -237,9 +238,29 @@ curl http://mypowerapp-customapi.azurewebsites.net/swagger/v1/swagger.json
 
 既にコネクタまで提供されている場合はここの手順から開始することになります。
 
-## キャンバスアプリから API を呼び出して結果を表示する
+## キャンバスアプリから Web API を呼び出して結果を表示する
+
+ようやく準備が整ったので、実際にキャンバスアプリから Web API を呼び出してみましょう。
+ここで利用する WeatherForecast という Web API は都度最新の情報を返すので、ボタンクリックの度に呼び出すように実装します。
+キャンバス内に API を呼び出すトリガーとなる **ボタン** と、その結果を表示するための **ギャラリー** を配置しておきます。
+
+![how to call web api from canvas app](./images/call-rest-api.mp4.gif)
+
+1. ボタンの **OnSelect** で [ClearCollect](https://docs.microsoft.com/ja-jp/powerapps/maker/canvas-apps/functions/function-clear-collect-clearcollect) 関数を使用して、`result` コレクションに `WeatherForecast` の呼び出し結果を格納
+1. ギャラリーのデータソースに `result` コレクションを選択する（ここで API の接続を選択すると一回呼び出して終わってしまう）
+1. *Alt* キーを押しながらボタンをクリックすると、実際の Web API 呼び出しが行われ、コレクションに格納されたデータがギャラリーに表示される
+1. このままだと結果がうまく表示されないので、ギャラリーのレイアウトを変更する
+1. 表示データとして `summary` だけでなく、`temperature` や `date` も表示されるようにカスタマイズする
+1. 再生ボタンを選択してアプリの実行画面が表示されたら、ボタンを数回クリックし、Web API の呼び出し結果が表示されることを確認する
 
 
+## まとめと補足
 
+途中でも書きましたが、現在 Web API がインターネットを通じて全世界に公開されている状態です。
+それが想定した提供形態であればもちろん構いませんが、
+ビジネスアプリの作成を主眼として提供されている Power Apps からの利用ということを鑑みると、
+ユーザー認証をかけるか、プライベートネットワーク空間でホストするケースが多いのではないでしょうか。
+ということで次は以下の方法をご紹介する予定です。
 
-https://docs.microsoft.com/ja-jp/connectors/custom-connectors/define-openapi-definition
+- [Azure Active Directory で保護された Web API の呼び出し](./)
+- [オンプレミスデータゲートウェイを利用して、オンプレミスでホストされる APIを呼び出す](./)
