@@ -37,8 +37,13 @@ Web API の作成方法、OpenAPI ドキュメントの作成方法、Web API �
 Web API の実装方法の詳細は本題ではないので、ここではテンプレートで自動生成できる範囲で済ませてしまいます。
 
 ```bash
+# 作業フォルダの作成
+mkdir myapi1
+cd myapi1
+
 # 利用する SDK のバージョンを固定しておく
 dotnet new globaljson --sdk-version 3.1.301
+
 # ASP.NET Core Web API のテンプレートからプロジェクトを自動生成する
 dotnet new webapi
 ```
@@ -60,6 +65,7 @@ JSON 形式のレスポンスデータが帰ってくることを確認して下
 ```bash
 # 開発用 Web サーバーを起動（既定ではポート 5000 で待機しているはず）
 dotnet run
+
 # テンプレートで実装済みの WeatherForecast API を呼び出す。
 curl http://localhost:5000/weatherforecast
 ```
@@ -116,19 +122,23 @@ public void ConfigureServices(IServiceCollection services)
 }
 ```
 
-実装した WebAPI と同様に、OpenAPI のユーザーインタフェースだけでなく、ドキュメントを特定のエンドポイントでホストするように指定します。
+実装した WebAPI と同様に、OpenAPI のユーザーインタフェースだけでなく、ドキュメントを特定のエンドポイントでホストするようにミドルウェアを組み込みます。
 なおここで V2 を指定している理由は、現在 Power Apps のカスタムコネクタが 
 [OpenAPI 2.0 のみをサポートしている](https://docs.microsoft.com/ja-jp/connectors/custom-connectors/faq#other)
 からです。
 
 ```csharp
-app.UseSwagger(c => {
-    c.SerializeAsV2 = true;
-});
-app.UseSwaggerUI(c => {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API v1");
-});
+public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+{
+    app.UseSwagger(c => {
+        c.SerializeAsV2 = true;
+    });
+    app.UseSwaggerUI(c => {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API v1");
+    });
 
+    //以下略
+}
 ```
 
 ここまででミドルウェアとしての準備が終わりましたので、各 WebAPI のメタデータを付与していきます。
@@ -150,7 +160,85 @@ public IEnumerable<WeatherForecast> Get()
 画面上部に `swagger.json` のリンクがありますので、ここからファイルをダウンロードして保存しておきます。
 これがカスタムコネクタの元ネタになります。
 
-## Power Apps のカスタムコネクタを作成する
+## Web API を実行環境にホストする
+
+それでは作成した Web API を Azure Web Apps でホストしてみましょう。
+ポータルでポチポチ作成してももちろん構いませんが、ここでもコマンドラインで実行していきます。
+
+```bash
+# Azure CLI からログインして使用するサブスクリプションを選択
+az login 
+az account set --subscription guid-of-your-subscription
+
+# Web App を作成する（リソース名などは適宜書き換えてください）
+az group create --name powerapp-customapi-demo-rg --location WestUS2
+az appservice plan create --name mypowerapp-customapi-plan --resource-group powerapp-customapi-demo-rg
+az webapp create --name mypowerapp-customapi --plan mypowerapp-customapi-plan --resource-group powerapp-customapi-demo-rg --runtime "DOTNETCORE|3.1"
+```
+
+ASP.NET Core で作成した Web API を配置出来るようにパッケージングし、Azure Web App に配置します。
+ここでは [Zip Deploy](https://docs.microsoft.com/ja-jp/azure/app-service/deploy-zip) 方式を採用していますが、
+実際には CI/CD Pipeline 等を構成することになるでしょう。
+
+```bash
+# 作成した Web API をビルドして publish フォルダに発行する
+dotnet publish -o publish
+cd publish
+
+# Zip に固める
+zip -r publish.zip .
+
+# Azure Web App に配置する
+az webapp deployment source config-zip --src publish.zip --resource-group powerapp-customapi-demo-rg --name mypowerapp-customapi 
+
+# 動作確認
+curl http://mypowerapp-customapi.azurewebsites.net/weatherforecast 
+curl http://mypowerapp-customapi.azurewebsites.net/swagger/v1/swagger.json
+```
+
+この状態ではインターネットに全公開している状態ですので、本来は認証等をかける必要がありますがそれは次回移行で紹介します。
+
+## OpenAPI ドキュメントからカスタムコネクタを作成する
+
+やっと Web API の準備が整いました。
+ここからはカスタムコネクタを作成して Power App から利用する手順です。
+画面操作が中心となりますので、アニメーションで紹介していきます。
+
+![how to create custom connector from openapi](./images/create-customconnector.mp4.gif)
+
+1. Web ブラウザで [https://powerapps.microsoft.com/](https://powerapps.microsoft.com/) を開いてサインイン
+1. 左のメニューで **データ** を展開して **カスタムコネクタ** を選択
+1. 右上にある **カスタムコネクタの新規作成** から **OpenAPI ファイルをインポートします** を選択
+1. コネクタ名を入力して、先ほど生成しておいた OpenAPI ドキュメント(swagger.json)を **インポート** して **続行** 
+1. **全般** タブでは Web API をホストしている Azure Web App のホスト名 `webappname.azurewebsites.net` を入力
+1. 先ほどホストした Web API は特に認証をかけていませんので **セキュリティ** タブでは **認証なし** のまま進む
+1. **定義** タブではインポートした OpenAPI ドキュメントの記載内容をカスタマイズせずにそのまま進む
+1. （テストに進む前に）このタイミングで一度チェックマークをクリックしてコネクタを保存
+1. **テスト** タブで作成したカスタムコネクタに対する **新しい接続** を作成
+1. 接続の管理画面に遷移してしまうので、左のメニューから **カスタムコネクタ** に戻る
+1. 最初に着けた名前のカスタムコネクタが表示されるので **鉛筆マーク（編集）** を選択
+1. **テスト** タブまで進むと **テスト操作** がアクティブになっているので選択して API が呼び出して正しい結果が帰ることを確認
+
+既存の Web API に対応したコネクタが提供されていなくとも、その仕様が定義された OpenAPI ドキュメントが入手できれば上記のようにカスタムコネクタが作成可能です。
+この OpenAPI ドキュメントにはリクエストパラメータやレスポンスデータの構造など Web API を利用するために必要な様々な情報が記載されているので、
+ PowerApps から簡単に API を呼び出すことが可能になるわけです。
+
+## キャンバスアプリを作成して接続を追加する
+
+先ほどの手順でテスト操作を行った際と同様に、キャンバスアプリからカスタムコネクタを利用する際にも **接続** を作成してアプリに追加してやる必要があります。
+
+![how to add connection of custom connector](./images/add-connection.mp4.gif)
+
+1. 新規にキャンバスアプリを作成し、左のメニューで  **データ** を展開
+1. 先ほど作成したカスタムコネクタ名を **検索**
+1. カスタムコネクタが表示されたら **接続の追加** を選択
+1. 画面右側にカスタムコネクタの情報が表示されるので **接続** を作成
+1. **アプリ内** に接続が追加されると利用することが可能な状態
+
+既にコネクタまで提供されている場合はここの手順から開始することになります。
+
+## キャンバスアプリから API を呼び出して結果を表示する
+
 
 
 
