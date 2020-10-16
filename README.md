@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Power Apps キャンバスアプリから Azure AD 認証で保護されたカスタム API を呼び出す](./powerapp-call-aad-auth-api)
 - [Power Apps キャンバスアプリから自作のカスタム API を呼び出す](./powerapp-call-rest-api)
 - [PowerApps キャンパスアプリのボタン押下時の処理と結果の反映](./powerapp-campus-submit-button)
 - [Azure Arc for Server で出来ること](./what-you-can-do-with-azurearc)
