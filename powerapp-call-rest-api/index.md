@@ -262,5 +262,5 @@ curl http://mypowerapp-customapi.azurewebsites.net/swagger/v1/swagger.json
 ユーザー認証をかけるか、プライベートネットワーク空間でホストするケースが多いのではないでしょうか。
 ということで次は以下の方法をご紹介する予定です。
 
-- [Azure Active Directory で保護された Web API の呼び出し](./)
+- [Azure Active Directory で保護された Web API の呼び出し](../powerapp-call-aad-auth-api)
 - [オンプレミスデータゲートウェイを利用して、オンプレミスでホストされる APIを呼び出す](./)
