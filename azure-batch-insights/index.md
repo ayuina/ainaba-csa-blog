@@ -91,17 +91,21 @@ Application Insights にクエリを保存しておけばいつでもポータ�
 
 ## カスタム トレースログの表示と可視化
 
-ノードの性能情報を表示するのは簡単でしたが、各アプリケーションが動作した際の部分的な処理の実行時間や回数、エラー情報などはこのままでは表示できません。
-残念なことにAzure Batch は
+Batch Insights でノードの性能情報を収集するのは簡単でしたが、ジョブやタスクの実行回数やエラーといった情報が送信出来ません。
+また Batch Explorer は「プールとノード」や「ジョブとタスク」というフレームワークとして定義された階層構造での分析には便利なのですが、
+「タスク間の依存関係」や「タスク内で実施される様々な処理」といったようなアプリケーションの仕様に基づいた分析が出来ません。
+さらに残念なことにAzure Batch は
 [自動インストルメンテーション](https://docs.microsoft.com/ja-jp/azure/azure-monitor/app/codeless-overview)
-に対応していませんので、アプリに対して手動でインストルメンテーションしてやる必要があります。
+に対応していません。
+というわけで、要件に基づいた柔軟な分析をしたい場合には、アプリに対して手動でインストルメンテーションを行うことで必要な情報を Application Insights に明示的に送信し、KQL を駆使してデータを加工する必要があります。
 
-要はログ出力コードの埋め込みになるわけですが、これは言語やランタイムによって異なってきますので、
+まずはインストルメンテーションですが、要はログ出力コードの埋め込みをします。
+これは言語やランタイムによって異なってきますので、
 詳細は[公式ドキュメント](https://docs.microsoft.com/ja-jp/azure/azure-monitor/app/api-custom-events-metrics)をご参照ください。
 例えば以下は .NET で直接埋め込む例になります。
 
 ```cs
-using (var ops = telemetryClient.StartOperation<RequestTelemetry>("実行時間を計測したい"))
+using (var ops = telemetryClient.StartOperation<RequestTelemetry>("hoge"))
 {
     telemetryClient.TrackEvent("イベント開始");
     for(int i = 0; i < 20; i ++)
@@ -136,4 +140,61 @@ Environment.GetEnvironmentVariables().Keys.OfType<string>().Where(k => k.StartsW
     _telemetry.Context.GlobalProperties.Add(k, Environment.GetEnvironmentVariable(k));
 });
 ```
+
+さてそれではクエリを実行されてみましょう。
+先ほどのようなコードで記述した場合、`StartOperation`で記録した部分は`requests` テーブルに対して `hoge` というオペレーション名で記録されているはずです。
+このテーブルには `duration` として実行時間が記録されるので性能測定に便利です。
+またプロパティとして付与した情報は `customDimensions` 列に格納されているので、この中から分析に必要なフィールドを展開してやれば良いわけです。
+下記は `とあるジョブ ID 内で実行された hoge というオペレーションの実行時間を50ミリ秒刻みに分類し、その出現頻度をノード別に色分けして棒グラフに出力する` 例になっています。
+
+```kql
+requests
+| extend jobid = customDimensions["AZ_BATCH_JOB_ID"]
+| where jobid == 'job-app01-20201030-143021-210652'
+| where operation_Name == 'hoge'
+| extend node = customDimensions["AZ_BATCH_NODE_ID"]
+| summarize count() by bin(duration, 50), tostring(node)
+| order by duration asc  
+| render columnchart 
+```
+実際の出力結果は以下のようになります。
+この時は20ノードで処理をしているので大分カラフルになりましたが、最頻値の150ミリ秒前後ではほぼ均等にノードが現れていますので、ノードによって処理時間に差はあまり出ていないようです。
+しかし回数は少ないですが、実行時間の長いものは1000秒を超えているものもあるようです。
+
+![request duration](./images/request-duration-using-kusto.png)
+
+Azure Batch が管理できるのはタスクの単位ですが、ここではオペレーションという独自の処理単位で集計ができています。
+タスクの中で `hoge` という処理は複数回実行されているかもしれませんし、一度も行われていないかもしれませんが、タスクの粒度とは関係なく興味のある単位で実行時間の解析が出来たわけです。
+
+さてもう一つの例を考えてみます。
+通常１つのプールの中で複数台のノードが動作しているわけですが、このプールに対して何度もジョブが投入され、大量のタスクを分散して実行することになります。
+実はアプリの起動直後に `TrackTrace` を使用して `使用された起動引数` を記録しておきました。
+各ノードで記録されたこのトレースの回数を数えれば、各ノードが均等に仕事をしているかがわかります。
+下記は `とあるプールの中で実行された、特定のトレースメッセージを含むものだけ抽出し、各ノードごとに出現回数を数えて棒グラフに表示する`クエリになっています。
+
+```
+traces
+| where customDimensions["AZ_BATCH_POOL_ID"] == 'pool0-20201030-142818-029975'
+| where message contains "app01-env.dll config"
+| extend taskid = customDimensions["AZ_BATCH_TASK_ID"]
+| extend node = customDimensions["AZ_BATCH_NODE_ID"]
+| summarize count(taskid) by tostring(node)
+| render barchart
+```
+
+実際の出力結果は以下のようになります。
+ジョブやタスクは何度も実行しているのですが、プールのサイズを途中で変えていないのでノード数と一致するバーが表示されています、全てのノードに仕事が割り当てられているようです。
+各ノードだいたい450回程度の実行が記録されているのですが、やたらと数が多い（900程度）ノードと、やたらと少ない（200程度）ノードがいるようです。
+あまりうまく分散できていないようですね。
+
+![task count](./images/taskcount-by-node-using-kusto.png)
+
+こちらの例では複数のジョブやタスクを横断して、ノード当たりの仕事量に着目した解析、ということになります。
+
+## まとめと留意事項
+
+Azure Batch 上で動作するアプリをカスタマイズできる場合には Application Insight をうまく使用していただくことで柔軟な解析が可能になります。
+しかし以下の点に留意していただければと思います。
+- 送信したデータに大して[サンプリング](https://docs.microsoft.com/ja-jp/azure/azure-monitor/app/sampling) が行われるため、ログ全量に対してクエリが行えるわけではない
+- 各 SDK は送信前にバッファリングを行うため、アプリ終了時には[データのフラッシュ](https://docs.microsoft.com/ja-jp/azure/azure-monitor/app/api-custom-events-metrics#flushing-data)を行う必要がある。
 
