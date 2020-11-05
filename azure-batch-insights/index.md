@@ -14,7 +14,8 @@ title: Azure Batch アプリケーションのログとテレメトリ解析
 - 各計算ノードで処理させるためのアプリやデータをばらまいて、コマンドラインを送り込んで実行させる
 - コマンドラインの実行結果となるファイルやログを Azure Blob ストレージに吸い上げる
 
-このコマンドラインや入出力に使われるファイルを `タスク` として管理し、複数のタスクを `ジョブ` という単位で取りまとめて管理してくれます。
+このコマンドラインの実行に必要な環境変数、入出力に使われるファイルなどの一式を `タスク` として管理し、
+複数のタスクを `ジョブ` という単位で取りまとめて管理してくれます。
 利用が大規模になるとノードを数百持つプールが複数稼働し、それらのノード上で複数の数千数万といったタスクが並列に実行されたりするわけです。
 
 ![overview](./images/overview.png)
@@ -24,10 +25,9 @@ title: Azure Batch アプリケーションのログとテレメトリ解析
 これは Azure Batch だけでは実現できないので、1つの手段としては 
 [Application Insights](https://docs.microsoft.com/ja-jp/azure/azure-monitor/app/app-insights-overview)
 が便利に使用できます。
-というわけで、本記事では Azure Batch で動作するアプリケーションからインサイトを得るために Application Insithgs を利用する方法について紹介していきます。
-公式ドキュメントでは
-[こちら](https://docs.microsoft.com/ja-jp/azure/batch/monitor-application-insights)
-で解説されている内容になりますが、これを補足するのがこの記事の目的になります（備忘録とも言う）
+またこの Application Insights で収集したテレメトリを Log Analytics ワークスペースに送信出来るようになりました。
+つまり Azure Batch そのものが出力する診断ログやメトリックもまとめて解析できるわけです。
+というわけで、本記事では Azure Batch で動作するアプリケーションからインサイトを得るために Azure Monitor の活用方法について紹介していきます。
 
 ## Azure Batch と Application Insights
 
@@ -54,6 +54,9 @@ Azure Batch から Application Insights に流し込めるデータは以下の�
 
 これらの収集されたデータを [Azure Batch Explorer](https://azure.github.io/BatchExplorer/) で可視化する、
 あるいは Azure Portal から [KQL : Kusto Query Language](https://docs.microsoft.com/ja-jp/azure/data-explorer/kusto/query/) を用いて柔軟な解析を行うことになります。
+公式ドキュメントでは
+[こちら](https://docs.microsoft.com/ja-jp/azure/batch/monitor-application-insights)
+で解説されている内容になります。
 
 ## Batch Insights の使い方
 
@@ -69,7 +72,7 @@ CPU, Memory, Network, Disk IO などの各種グラフが表示されるよう�
 
 このようなケースでは、Azure Portal から独自のクエリをかけていくといいでしょう。
 Batch Insights が収集したデータは `customMetrics` テーブルに格納されていますので、こちらを対象にクエリを作成します。
-例えば以下は `９時から１２時の間における各コアの使用量を5分間隔で集計して線グラフで表示する` 礼になります。
+例えば以下は `９時から１２時の間における各コアの使用量を5分間隔で集計して線グラフで表示する` 例になります。
 
 ```kql
 customMetrics
@@ -191,10 +194,78 @@ traces
 
 こちらの例では複数のジョブやタスクを横断して、ノード当たりの仕事量に着目した解析、ということになります。
 
-## まとめと留意事項
+## Azure Batch と Log Analytics
 
-Azure Batch 上で動作するアプリをカスタマイズできる場合には Application Insight をうまく使用していただくことで柔軟な解析が可能になります。
-しかし以下の点に留意していただければと思います。
+ここまでの内容で Batch Insithgs を利用することでノードレベルでのパフォーマンス情報が、
+アプリケーションの詳細なテレメトリ情報を収集・解析ができるようになりましたが、
+このままでは以下のような課題があります。
+
+- インストルメンテーションが不可能な 3rd Party 製アプリケーションの実行状況は収集することできない
+- Batch Insights やカスタムアプリの起動に失敗すると何も情報が取れない
+- ノード内で実行されたアプリでは収集できないプールの生成やノードの起動などのイベント情報が取れない
+
+このためプールやタスクを管理している Azure Batch 側からのデータもあわせて収集しておくと良いでしょう。
+Azure Batch の[診断ログや各種メトリック](https://docs.microsoft.com/ja-jp/azure/batch/batch-diagnostics)は元々ストレージアカウントや Log Analytics ワークスペースに収集することが出来るのですが、
+この収集先を前述の Application Insights と[統合された Log Analytics ワークスペース](https://docs.microsoft.com/ja-jp/azure/azure-monitor/app/create-workspace-resource)
+にしてやることで各種情報を一元的に分析できるようになるわけです。
+
+![batch-diagnostics-metric](./images/batch-diagnostics-metric.png)
+
+実際に Application Insights を Log Analytics ワークスペースと統合してやると、
+診断ログが格納された `AzureDiagnostics` テーブルや各種メトリック値が格納された `AzureMetrics` テーブルと一緒に、
+Application Insights から送信された AppXxxx テーブルが確認出来ます。
+
+## Azure Batch 診断ログの解析
+
+まずタスクの実行状況を診断ログから確認してみます。
+
+```kusto
+AzureDiagnostics
+| where TimeGenerated between (datetime('2020/11/5 12:55:00')..datetime('2020/11/5 13:30:00'))
+| where ResourceProvider == 'MICROSOFT.BATCH' and OperationName startswith "Task" 
+| summarize count() by bin(TimeGenerated, 1m), OperationName
+| render columnchart 
+```
+結果を見ると 1000 タスクの全てが開始するのに 5 分程度かかっていますが、同じく 5 分程度で 1000 タスクが終了しています。
+投入したタスクに対しては 1 分あたり 200 タスクさばける程度の処理能力を持っているようですね。
+
+![task-start-complete](./images/task-start-complete.png)
+
+## Azure Batch メトリックの解析
+
+次にこの時間帯のノードの利用状況も見てみましょう。
+
+```kusto
+AzureMetrics
+| where TimeGenerated between (datetime('2020/11/5 12:55:00')..datetime('2020/11/5 13:30:00'))
+| where ResourceProvider == 'MICROSOFT.BATCH' 
+| where MetricName in ('IdleNodeCount', 'RunningNodeCount', 'TotalNodeCount', 'TotalLowPriorityNodeCount')
+| summarize avg(Total) by bin(TimeGenerated, 1m), MetricName
+| render timechart 
+```
+
+タスクが投入される少し前にプールが４ノード（Standard VM 1 + Low Priority VM 3）から 10 ノード（Standard VM 2 + Low Priority VM 8）にスケールし、
+タスクが実行されていた時間帯は全ノードが running 状態であったことが確認出来ます。
+
+![pool-running-idle](./images/pool-running-idle.png)
+
+
+## まとめ
+
+Azure Batch を利用する場合は診断ログとメトリックを Log Analytics ワークスペースに送信してやるだけで様々な実行状況の解析が可能になります。
+加えて Batch Insights を利用することで各ノード内の詳細なパフォーマンスデータが取れるようになりますので、ボトルネックの分析やチューニングに役立てることが出来ます。
+ここまでは任意のアプリケーションに大して設定だけで実装可能ですが、カスタムアプリケーションの場合はインストルメンテーションを行うことで、
+よりアプリケーションの仕様に即した性能分析を行うことが出来るようになります。
+
+## 留意事項
+
+ここまで紹介してきた通り Application Insight をうまく使用していただくことで柔軟な解析が可能になるのですが、以下の点に留意していただければと思います。
+
 - 送信したデータに大して[サンプリング](https://docs.microsoft.com/ja-jp/azure/azure-monitor/app/sampling) が行われるため、ログ全量に対してクエリが行えるわけではない
 - 各 SDK は送信前にバッファリングを行うため、アプリ終了時には[データのフラッシュ](https://docs.microsoft.com/ja-jp/azure/azure-monitor/app/api-custom-events-metrics#flushing-data)を行う必要がある。
 
+これは Application Insights 上で解析するとデータが欠けている場合があることを意味します。
+このためアプリの実行証跡としての `ログ` は別途必ず出力し、ファイルとして Blob 等に保存しておくことをお勧めします。
+
+また Log Analytics もデータが送信されてからクエリで表示できるようになるまでに短くとも数分程度の遅延があります。
+開発時にはアプリに加えてクエリに関してもトライ＆エラーを行うことになりますが、実行後にすぐに結果が見えるわけではないことに留意して作業を進めていただければと思います。
