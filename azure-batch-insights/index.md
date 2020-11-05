@@ -282,6 +282,8 @@ Batch Insights やインストルメンテーション結果がどうしても�
 その制約をかけているモノとして具体的には NSG : Network Security Group 、Azure Firewall 、プロキシ、仮想アプライアンスなどが考えられますが、
 それらに大して許可設定を行う必要があります。
 
+![vnet-pool-and-insights](./images/vnet-pool-and-insights.png)
+
 あるいは [Application Insightsに接続するための Private Endpoint](https://docs.microsoft.com/ja-jp/azure/azure-monitor/platform/private-link-security) も構成できます。
 この場合は Application Insights をあたかも仮想ネットワーク内に配置されて Private IP アドレスで到達可能なリソースとしてアクセス出来るようになりますので、
 前述の制限の回避に役立つのではないでしょうか。
