@@ -211,9 +211,12 @@ Azure Batch の[診断ログや各種メトリック](https://docs.microsoft.com
 
 ![batch-diagnostics-metric](./images/batch-diagnostics-metric.png)
 
-実際に Application Insights を Log Analytics ワークスペースと統合してやると、
+実際に Application Insights を Log Analytics ワークスペースと統合して、Log Analytics ワークスペースでデータを確認すると、
 診断ログが格納された `AzureDiagnostics` テーブルや各種メトリック値が格納された `AzureMetrics` テーブルと一緒に、
-Application Insights から送信された AppXxxx テーブルが確認出来ます。
+Application Insights から送信されたデータが格納される AppXxxx テーブルが確認出来ます。
+ただこの AppXxxx テーブル、テーブル名だけでなく列名も異なっています。
+Application Insights からクエリをかける場合と、その裏にある Log Analytics Workspace からクエリをかける場合でクエリの内容が変ってしまいますので、
+その点はご注意ください。
 
 ## Azure Batch 診断ログの解析
 
@@ -265,7 +268,7 @@ Azure Batch を利用する場合は診断ログとメトリックを Log Analyt
 - 各 SDK は送信前にバッファリングを行うため、アプリ終了時には[データのフラッシュ](https://docs.microsoft.com/ja-jp/azure/azure-monitor/app/api-custom-events-metrics#flushing-data)を行う必要がある。
 
 これは Application Insights 上で解析するとデータが欠けている場合があることを意味します。
-このためアプリの実行証跡としての `ログ` は別途必ず出力し、ファイルとして Blob 等に保存しておくことをお勧めします。
+このためアプリの実行証跡としての `ログ` は別途必ず出力しておき、ファイルとして Blob 等に保存しておくことをお勧めします。
 
 また Log Analytics もデータが送信されてからクエリで表示できるようになるまでに短くとも数分程度の遅延があります。
 開発時にはアプリに加えてクエリに関してもトライ＆エラーを行うことになりますが、実行後にすぐに結果が見えるわけではないことに留意して作業を進めていただければと思います。
