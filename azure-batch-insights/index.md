@@ -284,15 +284,84 @@ Azure Batch を利用する場合は診断ログとメトリックを Log Analyt
 
 ## プールが仮想ネットワークに配置される場合
 
-Azure Batch はノードとして使用する仮想マシンを仮想ネットワーク内に配置することで、
-仮想ネットワーク内の他のリソースやオンプレミス環境と連携する Batch ソリューションを実現することが可能です。
-ただこのような環境では仮想ネットワークから外部への通信が制約を受けることが多く、 Application Insights へ通信できないことが往々にしてあります。
-Batch Insights やインストルメンテーション結果がどうしても表示されない場合は、まずプールが配置されているネットワーク環境を疑ってみてください。
-その制約をかけているモノとして具体的には NSG : Network Security Group 、Azure Firewall 、プロキシ、仮想アプライアンスなどが考えられますが、
-それらに大して許可設定を行う必要があります。
+Azure Batch ではノードとして使用する仮想マシンを仮想ネットワーク内に配置することで、仮想ネットワーク内の他のリソースやオンプレミス環境と連携する Batch ソリューションを実現することが可能です。
+ただこのような環境では仮想ネットワークから外部への通信が制約を受けることが多く、Application Insights 等の外部サービスへ通信できないことが往々にしてあります。
+Batch Insights やインストルメンテーション結果がどうしても表示されない場合は、プールが配置されているネットワーク環境を疑ってみてください。
 
 ![vnet-pool-and-insights](./images/vnet-pool-and-insights.png)
 
-あるいは [Application Insightsに接続するための Private Endpoint](https://docs.microsoft.com/ja-jp/azure/azure-monitor/platform/private-link-security) も構成できます。
-この場合は Application Insights をあたかも仮想ネットワーク内に配置されて Private IP アドレスで到達可能なリソースとしてアクセス出来るようになりますので、
-前述の制限の回避に役立つのではないでしょうか。
+[Batch Insights の設定手順](https://github.com/Azure/batch-insights) にしたがって構成すると、次のような通信が必要になります。
+
+- GitHub.com からのインストールスクリプトおよび実行モジュールのダウンロード
+- Application Insights へのテレメトリ送信
+
+これらの通信が阻害されていれば適切に動作しません。
+一般的に通信を阻害しそうな容易としては NSG(Network Security Group) 、Azure Firewall 、プロキシ、仮想アプライアンス、などが考えられます。
+オンプレミスへ強制トンネリングが行われるケースではオンプレミス側のネットワーク機器である可能性もあります。
+これらに大して通信を許可するように構成を行う必要がありますが、これが難しい場合は以下のような代替回避策も考えられます。
+
+### Application Insight への通信
+
+Application Insights は[Private Endpoint](https://docs.microsoft.com/ja-jp/azure/azure-monitor/platform/private-link-security) も構成できます。
+この場合は Application Insights をあたかも仮想ネットワーク内に配置されて Private IP アドレスで到達可能なリソースとしてアクセス出来るようになりますので、こちらも解決策の１つになりえるでしょう。
+
+### GitHub への通信
+
+GitHub に関しては Private Endpoint が構成できません。
+実行時の通信許可設定が出来ないのであれば、Batch Insights の実行モジュールを事前にダウンロードしておく方法が考えられます。
+ただこの方式ですと、Batch Insights のバージョンアップが行われても古いものを使い続けることになりますので、バージョンアップの運用は別途考えておく必要があります。
+
+まず構成手順の中で示されているように、開始タスクの中では下記のセットアップスクリプトをダウンロードして実行しています。
+
+```sh
+#!/bin/bash
+set -e;
+
+wget -O ./batch-insights "$BATCH_INSIGHTS_DOWNLOAD_URL";
+chmod +x ./batch-insights;
+./batch-insights $AZ_BATCH_INSIGHTS_ARGS  > batch-insights.log &
+```
+
+このスクリプトでも GitHub から実行モジュールをダウンロードし、それをデーモン起動しているわけです。
+つまりこの `$BATCH_INSIGHTS_DOWNLOAD_URL` から事前にダウンロードしたバイナリを Blob にアップロードしておき、
+プールの開始タスクでダウンロードしてもらえば、実行時には GitHub への通信が不要になります。
+プール作成のコードは以下のようになります（一部省略してあります）
+
+```csharp
+// Azure Batch SDK でプールを作成する
+var azbatclient = BatchClient.Open(credential);
+var newpool = azbatclient.PoolOperations.CreatePool(poolid, etc...);
+
+// 仮想ネットワークにプールを作成する設定（この仮想ネットワークから外部への通信が阻害される）
+newpool.NetworkConfiguration = new NetworkConfiguration(){
+    SubnetId = $"/subscriptions/{guid}/resourceGroup/{rgName}/providers/Microsoft.Network/virtualNetwork/{vnetName}/subnet/{subnetName}",
+    PublicIPAddressConfiguration = new PublicIPAddressConfiguration(IPAddressProvisioningType.BatchManaged)
+};
+
+// Batch Insights を構成する開始タスク（プール内にノードが配備されるたびに実行される）
+newpool.StartTask = new StartTask() 
+{
+    // 通常のセットアップ手順（GitHubへの通信が必要）
+    // CommandLine = "/bin/bash -c 'wget  -O - https://raw.githubusercontent.com/Azure/batch-insights/master/scripts/run-linux.sh | bash'"
+
+    // 後述のリソースファイル設定で実行モジュールがダウンロードされているはず
+    CommandLine = "/bin/bash -c './batch-insights $AZ_BATCH_INSIGHTS_ARGS &'"
+
+    // Batch Insights の動作に必要な環境変数の設定
+    EnvironmentSettings = new List<EnvironmentSetting>() {
+        new EnvironmentSetting("APP_INSIGHTS_INSTRUMENTATION_KEY", "application-insights-instrumentation-key"]),
+        new EnvironmentSetting("APP_INSIGHTS_APP_ID", "application-id-of-application-insights"),
+        new EnvironmentSetting("AZ_BATCH_INSIGHTS_ARGS", "optional-parameters-of-batch-insights"),
+        // new EnvironmentSetting("BATCH_INSIGHTS_DOWNLOAD_URL", "https://github.com/Azure/batch-insights/releases/download/vX.Y.Z/batch-insights")
+    },
+
+    // Batchアカウントにリンクされたストレージのコンテナに、別途ダウンロードしておいた Batch Insights モジュールをアップロードしておく
+    ResourceFiles = new List<ResourceFile>() {
+        // 指定したコンテナ内のファイルが開始タスクの実行ディレクトリにコピーされる
+        ResourceFile.FromAutoStorageContainer("blob-container-name")
+    }
+}
+
+// 作成
+await newpool.CommitAsync();
+```
