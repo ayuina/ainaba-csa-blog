@@ -235,6 +235,10 @@ AzureDiagnostics
 
 ![task-start-complete](./images/task-start-complete.png)
 
+Azure Batch から送信される診断ログのデータスキーマは
+[こちら](https://docs.microsoft.com/ja-jp/azure/batch/batch-analytics)
+をご参照ください。
+
 ## Azure Batch メトリックの解析
 
 ジョブが実行された時間帯が分かったので、この時間帯のノードの利用状況も見てみましょう。
@@ -254,6 +258,9 @@ AzureMetrics
 
 ![pool-running-idle](./images/pool-running-idle.png)
 
+Azure Batch から送信されるメトリックの定義は
+[こちら](https://docs.microsoft.com/ja-jp/azure/azure-monitor/platform/metrics-supported#microsoftbatchbatchaccounts)
+をご参照ください。
 
 ## まとめ
 
