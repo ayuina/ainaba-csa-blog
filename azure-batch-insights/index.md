@@ -221,13 +221,14 @@ Application Insights からクエリをかける場合と、その裏にある L
 ## Azure Batch 診断ログの解析
 
 まずタスクの実行状況を診断ログから確認してみます。
+特定のジョブで実行されたタスクの開始と終了件数をグラフにしてみましょう。
 
 ```kusto
 AzureDiagnostics
-| where TimeGenerated between (datetime('2020/11/5 12:55:00')..datetime('2020/11/5 13:30:00'))
-| where ResourceProvider == 'MICROSOFT.BATCH' and OperationName startswith "Task" 
-| summarize count() by bin(TimeGenerated, 1m), OperationName
-| render columnchart 
+| where OperationName startswith "Task"
+| where jobId_s == 'job-app01-20201105-131350-970243'
+| summarize count() by bin( TimeGenerated, 1m), OperationName
+| render columnchart
 ```
 結果を見ると 1000 タスクの全てが開始するのに 5 分程度かかっていますが、同じく 5 分程度で 1000 タスクが終了しています。
 投入したタスクに対しては 1 分あたり 200 タスクさばける程度の処理能力を持っているようですね。
@@ -236,7 +237,8 @@ AzureDiagnostics
 
 ## Azure Batch メトリックの解析
 
-次にこの時間帯のノードの利用状況も見てみましょう。
+ジョブが実行された時間帯が分かったので、この時間帯のノードの利用状況も見てみましょう。
+前後の様子も見たいので時間幅に余裕を持たせたクエリになっています。
 
 ```kusto
 AzureMetrics
