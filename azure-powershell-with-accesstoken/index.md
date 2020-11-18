@@ -1,6 +1,6 @@
 ---
 layout: default
-title: PowerShell で Azure の REST API 呼び出しをするときの Access Token の取得と使い方
+title: PowerShell で Azure の REST API 呼び出しをするときの Azure Active Directory の Access Token の取得と使い方
 ---
 
 ## はじめに
@@ -15,14 +15,14 @@ title: PowerShell で Azure の REST API 呼び出しをするときの Access T
 Azure Portal も Azure CLI も Azure PowerShell も、しょせんは REST API のラッパーアプリケーションなので、この方法を知っているか知らないか出来ることに差が出ます。
 
 以降では具体的なやり方を紹介していきたいと思いますが、Azure の API には
-[コントロールプレーンとデータプレーン」(https://docs.microsoft.com/ja-jp/azure/azure-resource-manager/management/control-plane-and-data-plane)
+[コントロールプレーンとデータプレーン](https://docs.microsoft.com/ja-jp/azure/azure-resource-manager/management/control-plane-and-data-plane)
 の２つがあり、その呼び出し方も若干異なってきます。
 
 ## コントロールプレーン API の場合
 
 さてもともとのきっかけになった [Sub Assesments REST API](https://docs.microsoft.com/ja-jp/rest/api/securitycenter/subassessments/list)
 の URL が https://management.azure.com/ になってるということは、これはコントロールプレーンの API なわけです。
-[Connect-AzAccount](https://docs.microsoft.com/en-us/powershell/module/az.accounts/connect-azaccount?view=azps-5.1.0)
+つまり [Connect-AzAccount](https://docs.microsoft.com/en-us/powershell/module/az.accounts/connect-azaccount?view=azps-5.1.0)
 で接続したアカウントが、Security Center へのアクセスを許可する RBAC 権限を持ってれば良さそうです。
 自分が管理しているサブスクリプションであれば必要な権限は持ってるはずなので、`Connect-AzAccount` で素直に自分のユーザーでログインしてしまえば良いことになります。
 そのあとは API を呼び出すコードなんですが、`Invoke-RestMethod` の引数とかを調べていたら、
@@ -33,7 +33,7 @@ Azure Portal も Azure CLI も Azure PowerShell も、しょせんは REST API �
 
 ```powershell
 # まずはログイン
-Connect-AzContext
+Connect-AzAccount
 # サブスクリプション ID を指定して
 $subscriptionid = "your-subscription-guid-here"
 # ARM API を呼び出す際のパスを指定して
@@ -71,7 +71,9 @@ Debian Security Update for systemd
 下記では PowerShell でトークンの中身を確認していますが、[jwt.ms](https://jwt.ms) などのトークンデコードツールを使用したほうが簡単です。
 
 ```powershell
-# まずは既定のトークンを取得
+# まずはログイン
+Connect-AzAccount
+# 既定のトークンを取得
 $token = (Get-AzAccessToken).Token
 # JWT トークンが帰ってくるので、ピリオド区切りの第２要素を Base64 でデコードして JSON を読み取る
 $bytes = [System.Convert]::FromBase64String( $token.Split('.')[1] )
@@ -92,6 +94,8 @@ https://management.core.windows.net/
 を叩いてみましょう。
 
 ```powershell
+# まずはログイン
+Connect-AzAccount
 # Azure Batch 用のトークンを取得
 $token = (Get-AzAccessToken -Resource 'https://batch.core.windows.net/').Token
 # JWT トークンが帰ってくるので、ピリオド区切りの第２要素を Base64 でデコードして JSON を読み取る
@@ -121,4 +125,41 @@ displayName vmSize          currentLowPriorityNodes currentDedicatedNodes
 ----------- ------          ----------------------- ---------------------
 pool0       standard_d8d_v4                       8                     0
 ```
+
+# まとめ
+
+REST API 呼び出しもだいぶ簡単にはなりましたが、敷居はやっぱり若干高いですし手間もかかります。
+まずは Azure PowerShell や Azure CLI に機能が搭載されていないかを確認しましょう。
+そのうえでやはりスクリプトからの REST API コールが必要な場合、以下のポイントを確認しましょう。
+
+
+### コントロールプレーンの API の場合
+
+- [Docs](https://docs.microsoft.com/en-us/rest/api/azure/)で仕様を確認する
+    - 実際に API を呼び出す際の URL が https://management.azure.com/ となっているはず
+    - HTTP メソッドやパラメータ、戻りのデータなどを確認
+- 認証に使用するクレデンシャルを決定する
+    - この資料で紹介したようにユーザーログインを使用するのか（対話的に操作する場合）
+    - [こちらの記事](../azure-powershell-automation)のようにマネージド ID やサービスプリンシパルを使用するのか
+- アクセス権限の付与
+    - 認証に使用するクレデンシャルに対して適切な RBAC 権限が付与されているかを確認
+- スクリプトの実装
+    1. `Connect-AzAccount` でログイン
+    1. `Invoke-AzRestMethod` を呼び出す
+
+### データプレーンの API の場合
+
+- [Docs](https://docs.microsoft.com/en-us/rest/api/azure/)で仕様を確認する
+    - 実際に API を呼び出す際の URL が対象のリソース名などを含んだ固有の URL になっているはず
+    - HTTP メソッドやパラメータ、戻りのデータなどを確認
+    - Azure AD 認証に対応しているかを確認し、トークン取得用のリソースエンドポイント URL を控えておく
+- 認証に使用するクレデンシャルを決定する
+    - この資料で紹介したようにユーザーログインを使用するのか（対話的に操作する場合）
+    - [こちらの記事](../azure-powershell-automation)のようにマネージド ID やサービスプリンシパルを使用するのか
+- アクセス権限の付与
+    - 認証に使用するクレデンシャルに対して適切な RBAC 権限が付与されているかを確認
+- スクリプトの実装
+    1. `Connect-AzAccount` でログイン
+    1. `Get-AzAccessToken` アクセス対象リソース用のトークンを取得
+    1. `Invoke-RestMethod` の Authorizaiton ヘッダーにトークンを付与して呼び出す
 
