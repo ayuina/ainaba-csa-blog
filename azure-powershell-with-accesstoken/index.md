@@ -1,21 +1,27 @@
 ---
 layout: default
-title: PowerShell Azure の REST API 呼び出しをするときの Access Token の取得
+title: PowerShell で Azure の REST API 呼び出しをするときの Access Token の取得と使い方
 ---
 
 ## はじめに
 
-そもそもは Azure Container Registry に貯めこんだコンテナイメージの脆弱性スキャン結果を、画面ではなくデータで欲しかったんですが、
+そもそもは Azure Container Registry に貯めこんだコンテナイメージの脆弱性スキャン結果を、画面ではなくデータで欲しかっただけなんですが、
 [こちら](https://docs.microsoft.com/ja-jp/azure/security-center/defender-for-container-registries-introduction#faq-for-azure-container-registry-image-scanning)
 を見るとコマンドがあるわけではなく、REST API を叩けということです。
 なるほど、めんどくさい。
-また Access Token を取得して REST API を呼び出すときに Authorization ヘッダーにセットするスクリプトを書かなければいけないわけですね。
-何度やっても覚えられないのでそろそろちゃんとメモを残そうと思いました。
+
+こういうときは適切な Access Token を取得して、REST API を呼び出すときに Authorization ヘッダーにセットするスクリプトを書かなければいけないわけです。
+何度やっても覚えられないので、そろそろちゃんとメモを残そうと思ってブログにしてみました。
+Azure Portal も Azure CLI も Azure PowerShell も、しょせんは REST API のラッパーアプリケーションなので、この方法を知っているか知らないか出来ることに差が出ます。
+
+以降では具体的なやり方を紹介していきたいと思いますが、Azure の API には
+[コントロールプレーンとデータプレーン」(https://docs.microsoft.com/ja-jp/azure/azure-resource-manager/management/control-plane-and-data-plane)
+の２つがあり、その呼び出し方も若干異なってきます。
 
 ## コントロールプレーン API の場合
 
-さて [Sub Assesments REST API](https://docs.microsoft.com/ja-jp/rest/api/securitycenter/subassessments/list)
-の URL が https://management.azure.com/ になってるってことはコントロールプレーンの API なので、
+さてもともとのきっかけになった [Sub Assesments REST API](https://docs.microsoft.com/ja-jp/rest/api/securitycenter/subassessments/list)
+の URL が https://management.azure.com/ になってるということは、これはコントロールプレーンの API なわけです。
 [Connect-AzAccount](https://docs.microsoft.com/en-us/powershell/module/az.accounts/connect-azaccount?view=azps-5.1.0)
 で接続したアカウントが、Security Center へのアクセスを許可する RBAC 権限を持ってれば良さそうです。
 自分が管理しているサブスクリプションであれば必要な権限は持ってるはずなので、`Connect-AzAccount` で素直に自分のユーザーでログインしてしまえば良いことになります。
@@ -56,7 +62,7 @@ Debian Security Update for systemd
 `Invoke-AzRestMethod` のドキュメントに `Azure resource management endpoint only` ある通り、
 これは https://management.azure.com/ でホストされてる REST API 専用です。
 データプレーンの API を呼び出したいときはどうすればいいんでしょうか。
-と、脱線していたら 
+この時点で最初の目的からは脱線しているのですが、最近は
 [Get-AzAccessToken](https://docs.microsoft.com/en-us/powershell/module/az.accounts/get-azaccesstoken?view=azps-5.1.0)
 なんていう素敵なコマンドレットもあるんですね。
 ちなみにこちらは November 2020 に追加されたものらしいので、まさにこのドキュメントを書いている今月リリースだったみたいです。
