@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [PowerShell で Azure の REST API 呼び出しをするときの Azure Active Directory の Access Token の取得と使い方](./azure-powershell-with-accesstoken)
 - [Azure Batch アプリケーションのログとテレメトリ解析](./azure-batch-insights)
 - [Power Apps キャンバスアプリから Azure AD 認証で保護されたカスタム API を呼び出す](./powerapp-call-aad-auth-api)
 - [Power Apps キャンバスアプリから自作のカスタム API を呼び出す](./powerapp-call-rest-api)
