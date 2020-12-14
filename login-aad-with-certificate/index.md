@@ -65,7 +65,7 @@ ValidationError: Invalid certificate, please use a valid PEM file.
 
 というわけで、この PFX 形式のファイルを PEM 形式に変換してみましょう。
 証明書の変換には OpenSSL を使用するのが定番みたいですね。
-スクリプト内で `$PFXPASS` で指定しているファイルは、エクスポート時に指定したパスワードを記載したテキストファイルです。
+下記のスクリプト内で `$PFXPASS` で指定しているファイルは、エクスポート時に指定したパスワードを記載したテキストファイルです。
 
 ```bash
 PFXFILE=./exported-certificate.pfx
@@ -110,16 +110,17 @@ az login --service-principal --allow-no-subscriptions --username $APP_ID --tenan
 
 ここでは `--allow-no-subscriptions` オプションを指定していますが、これは純粋に AAD ログインに成功するか否かを検証するためです。
 Azure RBAC のアクセス権を全く付与されていないサービスプリンシパルで、このオプション抜きでサインインすると下記のようなエラーが帰ってきます。
-そもそも Azure 操作をするための Azure CLI なので、アクセス権を持つサブスクリプションが１つも無い場合にはエラーと判定されますよね。
-ですがここでは、サブスクリプションの有無は問題ではないので `--allow-no-subscriptions` としています。
 
 ```
 ValidationError: No subscriptions found for application-name-or-guid.
 ```
 
+そもそも Azure 操作をするための Azure CLI なので、アクセス権を持つサブスクリプションが１つも無い場合にはエラーと判定されますよね。
+ですがここでは、サブスクリプションの有無は問題ではないので `--allow-no-subscriptions` としています。
+
 ## 別解 : Azure CLI 用に別の証明書を発行する
 
-与えられた PFX 形式の証明書でどうにかやりくりしなければならない事情がある場合には、前述のような証明書変換アプローチは有効でしょう。
+[与えられた PFX 形式の証明書でどうにかやりくりしなければならない事情](#補足)がある場合には、前述のような証明書変換アプローチは有効でしょう。
 ただそもそも Azure AD のアプリケーションに登録する証明書やシークレットは 1 つである必要はありません。
 いま持っている証明書が Azure CLI で使用できないならば、新規に発行してしまえば良い、という考え方もあるわけです。
 その証明書発行と Azure AD への登録権限があり、証明書の運用が少し増えることを受け入れられるのならば。
