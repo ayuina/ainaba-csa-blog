@@ -11,10 +11,12 @@ Azure AD 認証が必要なアプリケーションが必ずしも Azure 上で�
 この証明書の発行方法や利用方法について微妙に手こずったので整理してみます。
 
 Azure PowerShell や Azure CLI でサービスプリンシパルを作り証明書を使用してサインインする方法については下記をご参照いただければと思いますが、
-本記事の切っ掛けとなったのはこの中で出てくる証明書のフォーマットです。
+本記事の執筆の切っ掛けとなったのはこの中で出てくる証明書のフォーマットです。
 
+- [Create an Azure service principal with Azure PowerShell](https://docs.microsoft.com/ja-jp/powershell/azure/create-azure-service-principal-azureps)
 - [Sign in with Azure PowerShell](https://docs.microsoft.com/ja-jp/powershell/azure/authenticate-azureps)
 - [Create an Azure service principal with the Azure CLI](https://docs.microsoft.com/ja-jp/cli/azure/create-an-azure-service-principal-azure-cli)
+- [Sign in with Azure CLI](https://docs.microsoft.com/en-us/cli/azure/authenticate-azure-cli)
 
 まず Azure PowerShell の場合は証明書を拇印(Thumbprint)で指定します。
 これは Windows の証明書ストアに秘密鍵を持った証明書がインストールされていることを前提としています。
@@ -24,7 +26,7 @@ Connect-AzAccount -ServicePrincipal -ApplicationId $APP_ID -Tenant $TENANT_ID -C
 ```
 
 次に Azure CLI の場合ですが、こちらの場合はシンプルに証明書ファイルに対するパスを指定します。
-ただしこの証明書は PEM という形式である必要があります。
+ただしこの証明書は PEM という形式であり秘密鍵が含まれている必要があります。
 
 ```bash
 az login --service-principal --username $APP_ID --tenant $TENANT_ID --password $pathToCertFile
