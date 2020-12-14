@@ -180,7 +180,7 @@ az ad sp create-for-rbac --skip-assignment -n $APP_NAME --create-cert
 
 さらに余談ですが、`--keyvault` オプションを指定するとローカルに証明書を生成することなく Key Vault でキーを管理させることができます。
 この証明書は Key Vault からダウンロードできますが、`パスワードなしのPFX形式` になるようです。
-Key Vault を使って証明書を管理したいtが `PEM` 形式が必要な場合は、後述の手順を利用してください。
+Key Vault を使って証明書を管理したいが `PEM` 形式が必要な場合は、後述の手順を利用してください。
 ```bash
 az ad sp create-for-rbac --skip-assignment -n $APP_NAME --create-cert --keyvault $KEYVAULT_NAME --cert $CERTIFICATE_NAME
 ```
