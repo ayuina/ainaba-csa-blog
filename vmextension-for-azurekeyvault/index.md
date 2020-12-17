@@ -146,7 +146,7 @@ Linux の場合は Windows のような証明書ストアではなく、`certifi
 証明書が更新されるとリンク先の実体が自動的に切り替わる仕組みのようですね。
 
 ```bash
-root@ainabatch-dev03:/var/lib/waagent/Microsoft.Azure.KeyVault# ls -la
+root@targetVmName:/var/lib/waagent/Microsoft.Azure.KeyVault# ls -la
 total 24
 drwx------  2 root root 4096 Dec 17 06:59 .
 drwx------ 11 root root 4096 Dec 17 07:20 ..
