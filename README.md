@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure 仮想マシンから Key Vault 証明書を利用する拡張機能](./vmextension-for-azurekeyvault)
 - [Azure AD サービスプリンシパルを使用したログインに使用する証明書について](./login-aad-with-certificate)
 - [PowerShell で Azure の REST API 呼び出しをするときの Azure Active Directory の Access Token の取得と使い方](./azure-powershell-with-accesstoken)
 - [Azure Batch アプリケーションのログとテレメトリ解析](./azure-batch-insights)
