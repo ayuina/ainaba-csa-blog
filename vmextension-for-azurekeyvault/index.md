@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Azure 仮想マシンから Key Vault 証明書を利用する
+title: Azure 仮想マシンから Key Vault 証明書を利用する拡張機能
 ---
 
 ## はじめに
