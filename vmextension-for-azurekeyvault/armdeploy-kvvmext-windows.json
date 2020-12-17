@@ -1,0 +1,36 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "targetVmName" : {
+            "type": "string"
+        },
+        "observedCertificates":{
+            "type": "array"
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "apiVersion": "2019-07-01",
+            "name": "[concat(parameters('targetVmName'), '/KVVMExtensionForWindows')]",
+            "location": "westus2",
+            "properties": {
+                "publisher": "Microsoft.Azure.KeyVault",
+                "type": "KeyVaultForWindows",
+                "typeHandlerVersion": "1.0",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "secretsManagementSettings": {
+                        "pollingIntervalInS": "300",
+                        "certificateStoreName": "My",
+                        "linkOnRenewal": true,
+                        "certificateStoreLocation": "LocalMachine",
+                        "requireInitialSync": true,
+                        "observedCertificates": "[parameters('observedCertificates')]"
+                    }
+                }
+            }
+        }
+    ]
+}

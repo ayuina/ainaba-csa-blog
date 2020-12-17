@@ -44,7 +44,11 @@ Key Vault に管理されている証明書が直接仮想マシンからアク�
 - [Windows 用の Key Vault 仮想マシン拡張機能](https://docs.microsoft.com/ja-jp/azure/virtual-machines/extensions/key-vault-windows)
 - [Linux 用の Key Vault 仮想マシン拡張機能](https://docs.microsoft.com/ja-jp/azure/virtual-machines/extensions/key-vault-linux)
 
-現状では Azure Portal の拡張機能ブレードに Key Vault 仮想マシン拡張機能が表示されません。
+まず仮想マシンの Managed ID を有効にして、Key Vault に格納された証明書に対するアクセス権を付与します。
+
+![allow vm to access key vault certificates](./images/allow-vm-access-kvcert.png)
+
+次に拡張機能ですが、現状では Azure Portal の拡張機能ブレードに Key Vault 仮想マシン拡張機能が表示されません。
 このため Azure CLI か Azure PowerShell を使用してインストールするか、Azure Resource Manager テンプレートを使用します。
 下図は Azure Portal から[テンプレートデプロイ](https://portal.azure.com/#create/Microsoft.Template)を使用して、
 仮想マシンと同じリソースグループに拡張機能をデプロイするところです。
@@ -59,6 +63,8 @@ Key Vault に管理されている証明書が直接仮想マシンからアク�
 
 デプロイに成功すると仮想マシン内で動作する拡張機能が「Managed ID を使用して Key Vault から証明書をダウンロードしてインストール」という一連の動作を勝手にやってくれます。
 このため仮想マシンに接続すると証明書がインストール済みのように見えるわけです。
+`pollingIntervalInS` に指定された秒数間隔で Key Vault をチェックして更新をしているので、
+Key Vault 側での証明書の更新がリアルタイムに同期されるわけではないことに注意しましょう。
 
 ## 証明書の確認
 
@@ -93,3 +99,73 @@ Thumbprint                                Subject              EnhancedKeyUsageL
 
 この方法でセットアップされた証明書は秘密鍵をエクスポートすることが出来ません。
 つまりもしこの仮想マシンの管理者特権を保有する保守・運用担当者が悪意を持っていたとしても、この環境から証明書を持ち出されて悪用される心配が無いわけです。
+
+
+## 証明書の確認 - Linux 編
+
+Linux の場合も基本やり方は同じです。
+Managed ID を有効化して、Key Vault 証明書へのアクセス権を付与、
+そして下記のような ARM テンプレートを用意して、デプロイすれば適用されます。
+
+```json
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {},
+    "resources": [
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "apiVersion": "2019-07-01",
+            "name": "targetVmName/KVVMExtensionForLinux",
+            "location": "westus2",
+            "properties": {
+                "publisher": "Microsoft.Azure.KeyVault",
+                "type": "KeyVaultForLinux",
+                "typeHandlerVersion": "1.0",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "secretsManagementSettings": {
+                        "pollingIntervalInS": "300",
+                        "linkOnRenewal": true,
+                        "certificateStoreLocation": "/var/lib/waagent/Microsoft.Azure.KeyVault",
+                        "requireInitialSync": true,
+                        "observedCertificates": [
+                            "https://keyvaultname.vault.azure.net/secrets/certificate1",
+                            "https://keyvaultname.vault.azure.net/secrets/certificate2"
+                        ]
+                    }
+                }
+            }
+        }
+    ]
+}
+```
+
+Linux の場合は Windows のような証明書ストアではなく、`certificateStoreLocation` にファイルとして配置されます。
+証明書名のファイルはシンボリックリンクになっており、実体はバージョン番号などが付与されたファイルになっています。
+証明書が更新されるとリンク先の実体が自動的に切り替わる仕組みのようですね。
+
+```bash
+root@ainabatch-dev03:/var/lib/waagent/Microsoft.Azure.KeyVault# ls -la
+total 24
+drwx------  2 root root 4096 Dec 17 06:59 .
+drwx------ 11 root root 4096 Dec 17 07:20 ..
+lrwxrwxrwx  1 root root  143 Dec 17 06:31 certificate1 -> /var/lib/waagent/Microsoft.Azure.KeyVault/keyvaultname.certificate1.version.aaaaaaaa.bbbbbbbb.PEM
+-rw-------  1 root root 2904 Dec 17 06:31 keyvaultname.certificate1.version.aaaaaaaa.bbbbbbbb.PEM
+lrwxrwxrwx  1 root root  140 Dec 17 06:31 certificate2 -> /var/lib/waagent/Microsoft.Azure.KeyVault/keyvaultname.certificate2.version.aaaaaaaa.bbbbbbbb.PEM
+-rw-------  1 root root 2884 Dec 17 06:31 keyvaultname.certificate2.version.aaaaaaaa.bbbbbbbb.PEM
+```
+
+## まとめ
+
+証明書を Key Vault で大事に管理したとしても、結局そこから持ち出して実行環境にインストールするまでの間が危険ですし、証明書を更新する運用の手間もかかります。
+こちらの機能をうまくつかっていただくと Key Vault 上の証明書を更新するだけで自動的に反映されますのでいろいろと楽になるのではないでしょうか。
+インターネットを調べてもあまりこの機能に言及されている記事も見当たらず、また公式ドキュメントからは読み取れないメリットもありましたので紹介記事にしてみました。
+お役に立てば幸いです。
+
+### 補足
+
+Key Vault で管理できる証明書には PEM 形式と PFX 形式があるのですが、Windows / Linux どちらの環境にもインストールできました。
+Windows 環境の場合は証明書ストアにインストールされてしまうので特に利用上の区別はありません。
+Linux 環境のばあいは自動的に PEM 形式に変換されるようですので
+[こちら](../login-aad-with-certificate) で苦労したような証明書変換の手間は不要です。
