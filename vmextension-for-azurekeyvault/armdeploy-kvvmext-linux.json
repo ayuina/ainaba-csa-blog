@@ -13,19 +13,18 @@
         {
             "type": "Microsoft.Compute/virtualMachines/extensions",
             "apiVersion": "2019-07-01",
-            "name": "[concat(parameters('targetVmName'), '/KVVMExtensionForWindows')]",
+            "name": "[concat(parameters('targetVmName'), '/KVVMExtensionForLinux')]",
             "location": "westus2",
             "properties": {
                 "publisher": "Microsoft.Azure.KeyVault",
-                "type": "KeyVaultForWindows",
+                "type": "KeyVaultForLinux",
                 "typeHandlerVersion": "1.0",
                 "autoUpgradeMinorVersion": true,
                 "settings": {
                     "secretsManagementSettings": {
                         "pollingIntervalInS": "300",
-                        "certificateStoreName": "My",
                         "linkOnRenewal": true,
-                        "certificateStoreLocation": "LocalMachine",
+                        "certificateStoreLocation": "/var/lib/waagent/Microsoft.Azure.KeyVault",
                         "requireInitialSync": true,
                         "observedCertificates": "parameters('observedCertificates')"
                     }
