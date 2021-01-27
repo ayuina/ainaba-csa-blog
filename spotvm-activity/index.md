@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Azure スポットVM
+title: Azure スポットVM が強制排除されたときの挙動について
 ---
 
 ## はじめに
