@@ -71,6 +71,10 @@ Aliases:  acrName.japaneast.data.azurecr.io
 40.79.197.128 is in 40.79.197.128/25 (AzureContainerRegistry.JapanEast)
 ```
 
+ちなみにここで使用している「サービスタグを調べるツール」は
+[こちら](https://github.com/ayuina/find-azure-service-tag)
+から入手可能です。
+
 ## プライベートエンドポイントを有効にした場合
 
 上記の例はあくまでもパブリック IP アドレス空間での通信になりますが、
@@ -101,7 +105,7 @@ Aliases:  acrName.japaneast.data.azurecr.io
 より正確にはそこに接続された Azure DNS プライベートゾーンが
 privatelink の DNS 名とプライベート IP アドレスに解決してくれています。
 
-## 両方構成したらどうなるのか
+## 両方構成したらどうなるの？
 
 専用データエンドポイントとプライベートエンドポイント、どちらを構成した場合もデータエンドポイント名は同じ ***acrName.regionName*.data.azurecr.io** になります。
 これ両方とも有効にした場合はどうなるんでしょうか。
