@@ -2,12 +2,9 @@
 
 ### コンテンツ
 
-<<<<<<< HEAD
-=======
 - [Azure Container Registry 専用データエンドポイントやプライベートエンドポイントとの通信ログ](./acr-data-endpoint-network-capture)
 - [Fiddler で Docker Daemon の通信ログを取得する](./capture-docker-daemon-traffic-with-fiddler)
 - [Azure NetworkServiceTag の逆引き ～ この IP アドレスはどのサービスと通信しているのか？ ～](https://github.com/ayuina/find-azure-service-tag)
->>>>>>> master
 - [Azure スポットVM が強制排除されたときの挙動について](./spotvm-activity)
 - [Azure 仮想マシンから Key Vault 証明書を利用する拡張機能](./vmextension-for-azurekeyvault)
 - [Azure AD サービスプリンシパルを使用したログインに使用する証明書について](./login-aad-with-certificate)
