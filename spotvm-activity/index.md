@@ -92,8 +92,55 @@ Resource Health が出ているので同じ内容が
 }
 ```
 
+## Azure Monitor Log (Log Analytics)で分析
+
+さて後日分析するとなると、アクティビティログを Azure Portal でそのまま見るとちょっと調べづらいので、
+[診断設定をして Log Analytics ワークスペースに送信](https://docs.microsoft.com/ja-jp/azure/azure-monitor/essentials/activity-log#send-to-log-analytics-workspace)
+しておきます。
+
+で、何度か強制排除されたころに分析してみます。
+クエリは以下のようになるでしょうか。
+
+- ここでは常時起動している仮想マシンじゃないのでクエリ期間を長くとっています。
+- キーワードは `preempted` が良さそうなので全てのログから `search` していきましょう。
+- 全フィールドの中から検索すると遅いので本当はもう少しちゃんと条件したほうが良いのですがとりあえず。
+- 大本のイベントデータ部分がネストしたJSON文字列に入っているのでちょっとややこしい構造になってしまっています。
+
+```kusto
+AzureActivity
+| where TimeGenerated > ago(90d)
+| search 'preempted'
+| order by TimeGenerated asc 
+| project Level, prop=Properties_d, evt=parse_json(tostring(Properties_d.eventProperties))
+| project prop['eventSubmissionTimestamp'], Level, prop[resourceGroup], prop['resource'], evt['title'], evt['details'], evt['type'], evt['cause']
+```
+
+というわけで使っているときに **たまたま** 運悪く割り込まれた時だけになるので件数は少ないのですが、結果は以下のようになりました。
+
+|"prop_eventSubmissionTimestamp"|Level|"prop_resource"|"evt_title"|"evt_details"|"evt_type"|"evt_cause"|
+|:--|:--|:--|:--|:--|:--|:--|
+|"2021-02-01T03:00:51.5920000Z"|Information|"ainabatch-dev02"|"Low priority machine preempted"|"This virtual machine has been preempted. This low-priority virtual machine is being stopped and deallocated."|Downtime|PlatformInitiated|
+|"2021-02-01T03:00:57.0400000Z"|Critical|"ainabatch-dev02"|"Low priority machine preempted"||Downtime|PlatformInitiated|
+|"2021-02-04T09:21:52.7280000Z"|Information|"ainabatch-dev02"|"Low priority machine preempted"|"This virtual machine has been preempted. This low-priority virtual machine is being stopped and deallocated."|Downtime|PlatformInitiated|
+|"2021-02-04T09:21:54.4750000Z"|Critical|"ainabatch-dev02"|"Low priority machine preempted"||Downtime|PlatformInitiated|
+|"2021-02-12T05:07:11.0100000Z"|Information|"ainabatch-dev02"|"Low priority machine preempted"|"This virtual machine has been preempted. This low-priority virtual machine is being stopped and deallocated."|Downtime|PlatformInitiated|
+|"2021-02-12T05:07:32.1490000Z"|Critical|"ainabatch-dev02"|"Low priority machine preempted"||Downtime|PlatformInitiated|
+|"2021-02-18T03:50:49.5920000Z"|Information|"ainabatch-dev02"|"Low priority machine preempted"|"This virtual machine has been preempted. This low-priority virtual machine is being stopped and deallocated."|Downtime|PlatformInitiated|
+|"2021-02-18T03:50:52.8690000Z"|Critical|"ainabatch-dev02"|"Low priority machine preempted"||Downtime|PlatformInitiated|
+
+Information Level で情報が入った直後の数秒後に Critical Level のログが記録されており、もう排除されてしまっています。
+まあ Spot VM ってそういうものなので、これはこういうものとして諦めましょう。
+
+## Alert も仕掛けてみる
+
+アラートルールも仕掛けてみました。
+SMS の方はそっけないですが、メールの方は必要な情報がほぼ記載されていそうです。
+
+![preempted-alert](./images/preempted-alert.png)
+
+
 ## Next Action
 
-今回は通知も何も仕掛けてない状態っだったので、ログを確認することくらいしか出来なかったですが、
-ログの内容が分かってきたので通知をだすなりもう少し仕掛けが出来そうです。
-狙ってやれないので次の機会で更新してみますね。
+In-VM Metadata Service でもイベント検知はできるのですが、それでもやはり猶予は 30 秒なので、まあ大したことは出来なさそうですね。
+- [Azure Metadata Service: Windows VM のスケジュールされたイベント](https://docs.microsoft.com/ja-jp/azure/virtual-machines/windows/scheduled-events)
+
