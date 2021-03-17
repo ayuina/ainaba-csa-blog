@@ -48,8 +48,9 @@ Error response from daemon: Get https://registry-1.docker.io/v2/: proxyconnect t
 
 うーん、困りました。
 いろいろ調べた結果 `host.docker.internal` というコンテナからホストを解決するための DNS があるらしく、これを試したらうまく行きました。
-ドキュメントの記述では　**コンテナからホストへの通信** て書いてあるけど、Docker Daemon もこれを使うってことなのかしら。
-つまり以下のような設定になります。
+[Docker for Windows のドキュメント](https://matsuand.github.io/docs.docker.jp.onthefly/docker-for-windows/networking/)
+には　**コンテナーからホスト上のサービスに接続** との記述になっていますが、Docker Daemon もこれを使うってことなのかしら。
+よって以下のような設定になります。
 
 ![docker-proxy-setup-setup](./images/docker-proxy-success-setup.png)
 
@@ -70,3 +71,11 @@ Fiddler 側で取れたキャプチャがこちらになります。
 いろいろと通信してるんですね（当たり前か）
 
 ![docker-communication-log](./images/docker-communication-log.png)
+
+## 補足
+
+上記の設定はあくまでも Docker Daemon が通信する時にホスト上で動作する Proxy 設定の方法なので、
+コンテナーで動作するアプリケーションが動作する時の通信ログを Fiddler で取るためには別の設定が必要なはずです。
+こっちは必要ないので試していないのですが、
+[実行時に環境変数で設定するか、Docker クライアントの設定ファイルを記述](https://matsuand.github.io/docs.docker.jp.onthefly/network/proxy/)
+すれば良さそうですね。
