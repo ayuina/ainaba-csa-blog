@@ -3,7 +3,7 @@
 ### コンテンツ
 
 - [Azure CLI を使用して Blob のバージョンを管理する](./blob-versioning-with-cli)
-- [Azure Container Registry 専用データエンドポイントやプライベートエンドポイントとの通信ログ](./acr-data-endpoint-network-capture)
+- [Azure Container Registry 専用データエンドポイントやプライベートエンドポイントとの通信ログを取得する](./acr-data-endpoint-network-capture)
 - [Fiddler で Docker Daemon の通信ログを取得する](./capture-docker-daemon-traffic-with-fiddler)
 - [Azure NetworkServiceTag の逆引き ～ この IP アドレスはどのサービスと通信しているのか？ ～](https://github.com/ayuina/find-azure-service-tag)
 - [Azure スポットVM が強制排除されたときの挙動について](./spotvm-activity)
