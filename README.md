@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure Functions の閉域化構成について](./closed-network-functions)
 - [1 つのAzure Resource に複数 Private Endpoint を設定する場合の注意事項](./multiple-private-endpoint-for-single-resource)
 - [Azure CLI を使用して Blob のバージョンを管理する](./blob-versioning-with-cli)
 - [Azure Container Registry 専用データエンドポイントやプライベートエンドポイントとの通信ログを取得する](./acr-data-endpoint-network-capture)
