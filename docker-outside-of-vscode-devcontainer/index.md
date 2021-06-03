@@ -106,11 +106,11 @@ CONTAINER ID   IMAGE                                                            
 
 docker コマンドをコンテナの中から実行しているのに、そのコンテナを外から見ている状態なのはなんだか不思議な気分です。
 
-
-## 開発に必要な SDK 等をインストールする
+## 開発に必要な SDK 等を Dev Container にインストールする
 
 さて、この時点ではベースイメージとして選択したコンテナイメージに含まれるツール群(git とか)しか使えません。
-このためパッケージマネージャ等を使ってインストールしていくことになりますが、毎回そんなことはやってられませんので、``.devcontainer/Dockerfile`` に記載していきます。
+このためパッケージマネージャ等を使ってインストールしていくことになりますが、毎回 VS Code 開くたびに毎回そんなことはやってられません。
+``.devcontainer/Dockerfile`` に SDK インストールを記載しておくことで、次回以降はビルド済みのイメージが使えるわけですね。
 たとえば .NET 5 の SDK をインストールするなら下記のような内容を追記します。
 
 ```Dockerfile
@@ -123,7 +123,7 @@ RUN wget https://packages.microsoft.com/config/ubuntu/20.10/packages-microsoft-p
     apt-get install -y dotnet-sdk-5.0
 ```
 
-そのままでは反映されませんので、コマンドパレット（Ctrl + Shift + P）から ```Remote-Containers: Reopen Folder Locally``` で一度コンテナから抜け、
+もちろん Dockerfile を書き換えただけでは反映されませんので、コマンドパレット（Ctrl + Shift + P）から ```Remote-Containers: Reopen Folder Locally``` を選んで一度コンテナから抜け、
 再度コマンドパレットから ```Remote-Containers: Rebuild and Reopen in Container``` を実行して、イメージを最新化した上でコンテナに接続しなおします。
 
 最初のうちはこの Dev Container を育てていくフェーズがなので、Rebuild と Reopen が頻繁にあって面倒ですが、いずれ頻度は下がっていくでしょう。
@@ -141,7 +141,14 @@ $ dotnet new web -o src
 $ dotnet new gitignore -o src
 $ cd src
 
-# いろいろコーディングしてから
+# いろいろコーディングする
+```
+
+この Dev Container はホストマシンのディレクトリをマウントしているわけですので、コンテナが終了してもソースコードがちゃんとホストマシンに残るわけですね。
+まあもちろんソースコードリポジトリにちゃんと保存しておくべきでしょう。
+この方法で作った Dev Container であれば git コマンドも使えますので、コンテナの中からでも外からでもバージョン管理は可能です
+
+```bash
 
 $ dotnet run
 
@@ -169,9 +176,7 @@ Linux コンテナで実行しているので curl などでテストしても�
 
 ![dotnet-run-and-port-forward](./images/dotnet-run-and-port-forward.png)
 
-なお、この Dev Container はホストマシンのディレクトリをマウントしているわけですので、コンテナが終了してもソースコードがちゃんとホストマシンに残るわけですね。
-まあもちろんソースコードリポジトリにちゃんと保存しておくべきでしょう。
-この方法で作った Dev Container であれば git コマンドも使えますので、コンテナの中からでも外からでもバージョン管理は可能です。
+なお、。
 
 
 ## 実行環境のコンテナを実行する
@@ -210,49 +215,21 @@ VS Code が自動的にやってくれないのは残念ですが「ホスト側
 ~~それに思い至るまで dev container の中から curl を打っては繋がらなくて泣きそうになってたのは秘密です~~
 
 
+## 出来上がったディレクトリ構成
 
+Visual Studio Code でディレクトリを開いたときに、そこに ```.devcontainer``` というディレクトリがあると、ここは直接じゃなくてコンテナから開いた方がいいんだな、ということに気が付いてくれるわけです。
+つまり以下のようなディレクトリ構成を作ってソースコードリポジトリで管理しておけば、あとはクローンして Visual Stduio Code で開けばよい、ということになります。
 
-
-## 実行環境のコンテナイメージを定義する
-
-さてアプリの開発が終わったら実行環境の準備ですね。
-開発コンテナにインストールされているのは SDK ですので実行環境としては余分です。
-ランタイムのみのイメージにアプリをデプロイして動作させたいわけですから、例えばこちらのような[別の Dockerfile](./src/Dockerfile) を用意することになります。
-
-## Docker outside of Docker の準備
-
-やっと前座が終わりました。
-それでは ```docker build ```して、と行きたいところですが、この開発コンテナでは実行できません。
-このため以下の手順が必要になります。
-
-- [.devcaontainer/Dockerfile](.devcontainer/Dockerfile) で Docker CLI をインストールする 
-- [.devcaontainer/devcontainer.json](.devcontainer/devcontainer.json) でホストマシンの ```/var/run/docker.sock``` をマウントしてやる
-
-またしてもコマンドパレット（Ctrl + Shift + P）から ```Remote-Containers: Reopen Folder Locally``` で一度コンテナから抜け、
-```Remote-Containers: Rebuild and Reopen in Container``` を実行して、イメージを最新化した上でコンテナに接続しなおします。
-この状態であれば sudo 付きならば docker コマンドが利用できるようになっていると思います。
-
-~~sudo なしで頑張る方法もありそうではあるのですが、かなりトリッキーになりそうなので一旦諦めました・・・。~~
-
-## 開発コンテナの中からアプリコンテナを起動する
-
-
-それでは先ほど用意しておいたアプリの Dockerfile をビルドして実行しましょう。
-
-```bash
-$ cd src
-$ sudo docker build -t app-container .
-$ sudo docker images
-
-REPOSITORY                                                                   TAG       IMAGE ID       CREATED          SIZE
-app-container                                                                latest    e3574686992b   17 minutes ago   205MB
-vsc-docker-outside-of-vscode-devcontainer-6db317e7d257ca334df89b964a5b54b8   latest    65999a18db5e   2 hours ago      1.12GB
-pystrsample                                                                  latest    ce350b283efa   45 hours ago     917MB
-python                                                                       3.8       e7d3be492e61   8 days ago       883MB
-ubuntu                                                                       latest    7e0aa2d69a15   5 weeks ago      72.7MB
-
-$ sudo docker run -d --rm -p 8080:8000 app-container 
-038025e44bcab23074c3312ea8c60c8fae3c334d9d5aeb83282244405ae682e0
-
-
-```
+- (VSCode で開くディレクトリ)
+    - .git/
+    - .vscode/
+        - launch.json
+        - tasks.json
+    - .devcontainer/
+        - devcontainer.json
+        - Dockerfile        <-- 開発環境のコンテナイメージを生成
+    - src/
+        - アプリのソースコード類
+        - Dockerfile        <-- 実行環境用のコンテナイメージ生成
+    - .gitignore
+    - README.md
