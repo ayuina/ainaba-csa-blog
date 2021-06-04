@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [コンテナアプリケーションがクラッシュした時のコアダンプ採取](./debug-core-dump-inside-docker)
 - [Visual Studio Code の Dev Container でコンテナアプリケーションを開発する](./docker-outside-of-vscode-devcontainer)
 - [Azure Functions の閉域化構成について](./closed-network-functions)
 - [1 つのAzure Resource に複数 Private Endpoint を設定する場合の注意事項](./multiple-private-endpoint-for-single-resource)
