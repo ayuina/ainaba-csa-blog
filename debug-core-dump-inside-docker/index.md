@@ -175,3 +175,37 @@ drwxrwxrwt 1 root root   4096 Jun  4 07:47 ..
 - [Core Dump (Segmentation fault) in C/C++](https://www.geeksforgeeks.org/core-dump-segmentation-fault-c-cpp/)
 
 
+## Azure Batch のコンテナタスクのクラッシュダンプ
+
+実は Azure Batch 環境で大量に並列稼働している計算ノードにてアプリがクラッシュが発生した際のダンプが取りたいってのが元々のお題でした。
+やり方を調べてるうちにほぼキモになる部分は Azure Batch に関係なく、Linux や Docker の世界だったので上記のようにまとめてみました。
+その方が汎用性もあるでしょうし。
+とはいえ Azure Batch のコンテナタスクでもコアダンプを取る方法もここに記載しておきます。
+
+### コアダンプの出力先設定
+
+まずプール開始タスクでコアダンプの出力先を指定するとよいでしょう。
+
+- [プール開始タスク](https://docs.microsoft.com/ja-jp/azure/batch/jobs-and-tasks#start-task) はホスト上で直接実行される（非コンテナ）タスクであり、かつ、プールにノードが追加されるときに必ず一度だけ実行されるため、仕掛けるタイミングとしてはここが最適
+- 出力先の設定変更には特権が必要のため[プール開始タスクの実行ユーザーを Admin に昇格して実行する](https://docs.microsoft.com/ja-jp/azure/batch/batch-user-accounts#elevated-access-for-tasks)必要がある
+- 出力先には[タスク間共有ディレクトリ $AZ_BATCH_NODE_SHARED_DIR](https://docs.microsoft.com/ja-jp/azure/batch/files-and-directories) など、ホスト側（プール開始タスク）と各コンテナ側（通常のタスク）から同じパスで参照できる場所を指定するとよい
+
+以上により、プール開始タスクは以下のようなコマンドラインを持つことになります。
+
+```bash
+$ /bin/bash -c 'sudo sysctl -w kernel.core_pattern="$AZ_BATCH_NODE_SHARED_DIR/core.%t.%e.%p" '
+```
+
+### コアダンプサイズの指定
+
+普段から ulimit フラグを unlimited にしておくとディレクトリを圧迫しかねないので、ダンプ採取が必要となったら設定を追加すると良いでしょう。コンテナタスク実行時には [docker create と同じオプション](https://docs.microsoft.com/ja-jp/azure/batch/batch-docker-container-workloads#container-task-command-line) を指定することができるので、```--ulimit core=-1``` を追加してあげてください。
+
+
+### コアダンプファイルの回収
+
+出力されたコアダンプは Azure Batch Explorer で採取するのが簡単だと思います。
+プール画面からコアダンプを吐いたはずの計算ノードを探り当て、Files タブを開くと ```shared``` といおうディレクトリが参照できます。
+ここはこのノード上で動作する全てのタスクから ```$AZ_BATCH_NODE_SHARED_DIR``` で参照できる位置になっています。
+
+![azure-batch-core-dump](./azure-batch-core-dump.png)
+
