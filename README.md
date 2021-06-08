@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure Blob Storage の認証とアクセス制御](./azure-blob-control-and-data-access)
 - [コンテナアプリケーションがクラッシュした時のコアダンプ採取](./debug-core-dump-inside-docker)
 - [Visual Studio Code の Dev Container でコンテナアプリケーションを開発する](./docker-outside-of-vscode-devcontainer)
 - [Azure Functions の閉域化構成について](./closed-network-functions)
