@@ -59,12 +59,12 @@ Azure とひとくくりに考えてしまうと直感的にはわかりにく�
 
 - コントロールプレーン
 	- 呼び出す際のエンドポイントとして ```https://management.azure.com``` を使用する（ARM 全てで共通、ストレージはリソースプロバイダーの１つ）
-	- アクセストークン必要時に Resource Id として ```https://management.azure.com/``` を指定する
-	- アクセス時に必要な代表的な RBAC ロール（所有者、閲覧者、共同作成者、など）
+	- API を呼び出すためのアクセストークンは ```resource=https://management.azure.com/``` を対象として発行してもらう必要がある
+	- アクセス時に必要な代表的な RBAC ロールは所有者、閲覧者、共同作成者、などになる
 - データプレーン
 	- 呼び出す際のエンドポイントとして ```https://account.blob.core.windows.net``` を使用する（各ストレージアカウント固有）
-	- アクセストークン必要時に Resource Id として ```https://storage.azure.com/``` ないしは ```https://account.blob.core.windows.net``` を指定する
-	- アクセス時に必要な代表的な RBAC ロール（ストレージ Blob データ所有者、ストレージ Blob データ閲覧者、ストレージ Blob データ共同作成者、など）
+	- API を呼び出すためのアクセストークンは ```resource=https://storage.azure.com/``` ないしは ```resource=https://account.blob.core.windows.net``` を対象として発行してもらう必要がある
+	- アクセス時に必要な代表的な RBAC ロールはストレージ Blob データ所有者、ストレージ Blob データ閲覧者、ストレージ Blob データ共同作成者、などになる
 
 また勘違いされがちですが、ストレージアカウントを作成したり管理の権限を持っている所有者や共同作成者であっても、データプレーンに対するアクセス権を持っているわけではないので、そのままではデータアクセスができません。
 同じユーザー（ないしはアプリケーション）からコントロールプレーンとデータプレーンの操作を両方行いたい場合には、下図のようにそれぞれのロールを割り当ててやる必要があります。
@@ -73,7 +73,7 @@ Azure とひとくくりに考えてしまうと直感的にはわかりにく�
 
 ### ストレージアカウントや Blob に対する RBAC アクセス制御
 
-もう少し RBAC 部分を深堀すると、上記で VM の Managed ID に割り当てられている共同作成者ロールの定義は下記のようになっています（抜粋）。
+もう少し RBAC 部分を深堀りすると、上記で VM の Managed ID に割り当てられている共同作成者ロールの定義は下記のようになっています（抜粋）。
 ```actions``` として広範囲な操作(```*```)が許可されている反面、```dataActions``` は空っぽです。
 
 ```json
@@ -181,25 +181,28 @@ SAS 方式での認証とアクセス制御を使いたいときには、まず 
 |sig|yCJ5CD%2BpedfYFz%2BQyr2idaDc3gQLdk5dgY2BcSPW380%3D|上記のアクセス許可に対する署名(Signature)、発行時から上記の内容が改ざんされていないことを保障する|
 
 アクセス許可の内容が URL に記載されているため、書き換えてしまえばなんでもアリなように一瞬思ってしまいますが、ちゃんと署名が付いています。
-ストレージアカウント側はこの署名をチェックすることで、この署名の発行者が共有キーを保有しているないしは RBAC などで権限が許可されていることを確認できます。
+ストレージアカウント側はこの署名をチェックすることで、この署名の**発行者**が共有キーを保有しているないしは RBAC などで権限が許可されていることを確認できます。
 共有キーを使用して署名された SAS をサービス SAS や アカウント SAS 、AAD 認証されたユーザー固有のキーを用いて署名されたものを ユーザー委任 SAS と呼びます。
 SAS の種類や制限などの詳細は[こちら](https://docs.microsoft.com/ja-jp/azure/storage/common/storage-sas-overview)。
 
 ### 注意事項
 
 SAS はストレージアカウントキーと同様に事前にキーを共有する方式です。
-つまり SAS を知っていれば誰でも同じ操作が可能であることを意味しますので、アクセス元が誰か（どのアプリか）を確認することは出来ません。
+SAS トークンの署名はあくまでも適切なキーを持っていた人間がアクセスを許可したことを示しますが、そのトークンを使用したユーザーやアプリが本来意図された対象であるか、までは保障できません。
+SAS を知っていれば意図する・しないに関わらず、誰でも同じ操作が可能であることということです。
 ストレージアカウントキーに比べて影響が小さく出来るとはいえ、SAS トークンの漏洩には十分にご注意ください。
 
+と、まあいろいろ書きましたが、世の中にはこのような事前共有キーで保護されたデータやサービスってのは意外とたくさんありますよね。
+PPAP とかオンライン会議情報とかがメールなどで共有されてくるってのは割とよくあるわけですし。
+共有キーというテクノロジーそれ自体が良い悪いという話ではないと思いますので、扱う内容やリスクも踏まえて選択頂ければと思います。
 
 
 
+## 役に立たないサンプルコード
 
-## Sample Code
-
-以下では認証方式の区別のために PowerShell から生の REST API を書くサンプルを紹介しています。
-が、実際にはこんないばらの道を歩く必要はなく、Azure PowerShell や Azure CLI といったコマンドラインツール、
-ないしは各言語向けに提供されている SDK を利用してください。
+以上で概念的な説明はおしまいですが、Azure とは API の集合体であり、そのためには各種の認証・アクセス制御を適切に行う必要がある、ということを理解するために、以下では生の REST API を直接呼び出すサンプルを紹介しています。
+ただ実際にはこんないばらの道を歩く必要はなく、Azure PowerShell や Azure CLI といったコマンドラインツール、ないしは各言語向けに提供されている SDK を利用してください。
+以下のサンプルコードで API 呼び出しの言語として PowerShell を選択したのは単に私の趣味です。
 
 ### コントロールプレーンのアクセス（Azure AD 認証）
 
@@ -211,15 +214,20 @@ SAS はストレージアカウントキーと同様に事前にキーを共有�
 
 ![rbac-for-contributor](./images/rbac-for-contributor.png)
 
+ちなみに上記はポータル上の操作として紹介していますが、内部的には実は[ユーザーやアプリにRBAC ロールを割り当てる](https://docs.microsoft.com/en-us/rest/api/authorization/role-assignments/create)
+というコントロールプレーンに対する API 呼び出しをやっています。
+うん、わかりにくい。
+
 では次に、ARM を介してストレージリソースプロバイダーにアクセスするためのアクセストークンを取得する必要があります。
 その際「接続先のターゲットリソース」は Azure Resource Manager になりますので、リソースとして ```https://management.azure.com/``` を指定します。
 詳細は[こちら](https://docs.microsoft.com/ja-jp/rest/api/azure/#create-the-request)。
 
 先ほどの例で言うと、仮想マシン内部で動作するアプリケーションであれば Managed ID を利用して、アクセストークンを取得できます。
-例えば以下は PowerShell を使用したサンプルコードになります。
+例えば以下は PowerShell を使用したサンプルコードになりますが、これは Azure というよりは Azure Active Directory の API を呼び出してますので、先ほどのコントロールプレーンやデータプレーンといった話とは別のモノです。分かりにくくてスミマセン。
 
 ```powershell
 # Get Access Token from Managed ID
+
 $resourceURI = "https://management.azure.com/"
 $tokenAuthURI = "http://169.254.169.254/metadata/identity/oauth2/token?resource=$resourceURI&api-version=2019-08-01"
 $tokenResponse = Invoke-RestMethod -Method Get -Headers @{"Metadata"="True"} -Uri $tokenAuthURI
@@ -277,7 +285,6 @@ Write-Output $res.Content
 ```
 
 引き続きコントロールプレーンの操作でストレージアカウントの共有キーも取得しておきましょう。
-これは後で使用します。
 
 ```powershell
 # Get Shared Key via Control Plane api
@@ -292,13 +299,17 @@ $res = Invoke-WebRequest -UseBasicParsing -Method Post -Uri $restEndpoint  -Head
 Write-Output $res.Content
 ```
 
+Azure PowerShell や Azure CLI を利用した構築や運用の **自動化** っていうのは、まさにこういう「コントロールプレーン API の自動操作」をやっていることが多いですね。
+ただ自動化の対象がデータプレーンまで含むケースもありますので、データプレーン側の API 呼び出しも見ていきましょう。
+
+
 ### AAD 認証でデータプレーンにアクセスする
 
 次はデータプレーン用の操作ですので、先ほどとは別の RBAC ロール割り当てが必要になります。
 
 例えば下記では仮想マシンの Managed ID に対して、とあるリソースグループに対する **ストレージ Blob データ共同作成者** ロールを割り当てています。
+ここではあえて同じ Managed ID に対して同じスコープ（リソースグループ）で 2 つのロールを割り当てていますが、実際にはもう少し細かくストレージアカウントやコンテナレベルで割り当てることが多いでしょう。
 以降ではこの Managed ID を使用するアプリケーションが、データプレーンの API を操作して Blob の書き込みや読み取りをする例を紹介していきます.
-
 
 ![rbac-for-data-contributor](./images/rbac-for-data-contributor.png)
 
@@ -314,15 +325,74 @@ $accessToken = $tokenResponse.access_token
 ```
 
 次に得られたアクセストークン付きの HTTPS Request を Blob サービスの API エンドポイントに送信すればよいわけです。
+エンドポイントとなる URL が ARM (management.azure.com) ではなく、Blob 固有の FQDN (accountName.blob.core.windows.net) になっています。
 
 ```powershell
 # Write data to blob service
 $blobname = "hoge.txt"
 $blobcontent = "hogehogehogehogehogehogehoge"
-$restEndpoint = "https://${storageAccountName}.blob.core.windows.net/${containerName}/myblockblob"
+$restEndpoint = "https://${storageAccountName}.blob.core.windows.net/${containerName}/${blobname}"
 
 $header = @{
-    "Authorization" = "Bearer ${accessToken}";
+  "Authorization" = "Bearer ${accessToken}";
+	"x-ms-date" = [System.DateTime]::UtcNow.ToString("R");
+	"x-ms-version" = "2019-02-02";
+	"x-ms-blob-type" = "BlockBlob"
+}
+
+$res = Invoke-WebRequest -UseBasicParsing -Method Put -Uri $restEndpoint -Headers $header -Body $blobcontent
+Write-Output $res.Content
+
+```
+
+### ストレージアカウントキーでデータプレーンにアクセス
+
+データプレーンの呼び出し方としては HTTP Authorization ヘッダーで送信する文字列の組み立て方が異なるだけで、AAD 認証の場合と基本的には同じです。
+実はこのヘッダーに組み込む署名文字列の組み立て方~~がクッソメンドクサイ~~のサンプルコード、昔造ったものを無くしてしまったので、とりあえずここはプレースホルダです。
+ご興味のある方は[こちら](https://docs.microsoft.com/ja-jp/rest/api/storageservices/authorize-with-shared-key)。
+SDK や実装済みのツール類を使った方が幸せになれそうなことはご理解いただけると思います。
+
+```powershell
+# place holder
+```
+
+で、ここで作り上げた文字列を利用して API を呼び出せばいいわけですね。
+多分こんな感じになるはず。
+
+```powershell
+# Write data to blob service
+$blobname = "hoge.txt"
+$blobcontent = "hogehogehogehogehogehogehoge"
+$restEndpoint = "https://${storageAccountName}.blob.core.windows.net/${containerName}/${blobname}"
+
+$header = @{
+  "Authorization" = "SharedKey ${storageAccountName}:${syomei-mojiretsu-from-shared-key}";
+	"x-ms-date" = [System.DateTime]::UtcNow.ToString("R");
+	"x-ms-version" = "2019-02-02";
+	"x-ms-blob-type" = "BlockBlob"
+}
+```
+
+### SAS を使用したデータプレーンアクセス
+
+SAS トークンを組み上げるところは~~クッソメンドクサイ~~長くなるので省略します。
+ご興味のある方は[こちら。](https://docs.microsoft.com/ja-jp/rest/api/storageservices/create-service-sas#authorization-of-a-service-sas)
+SDK や実装済みのツール類を使った方が幸せになれそうなことはご理解いただけると思います。
+
+```powershell
+# place holder
+```
+
+SAS を使用する場合は呼び出す際の URL にトークンが含まれているので、Authorization ヘッダーを作り上げる必要はありません。
+出来上がったトークンを対象の URL にくっつけて呼び出してあげれば良いわけです。
+
+```powershell
+$sastoken = "sp=rcwd&st=2021-06-08T09:38:31Z&se=2021-06-20T17:38:31Z&spr=https&sv=2020-02-10&sr=b&sig=signature-goes-here"
+$blobname = "myblockblob"
+$blobcontent = "fugafugafuga"
+$restEndpoint = "https://${storageAccountName}.blob.core.windows.net/${containerName}/${blobname}?${sastoken}"
+
+$header = @{
 	"x-ms-date" = [System.DateTime]::UtcNow.ToString("R");
 	"x-ms-version" = "2019-02-02";
 	"x-ms-blob-type" = "BlockBlob"
