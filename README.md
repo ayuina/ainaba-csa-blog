@@ -1,6 +1,8 @@
 ## ainaba's blog
 
 ### コンテンツ
+
+- [Azure Static Web Apps の認証とアクセス制御まわりで気になったところ](./auth-static-webapp)
 - [Azure の状態の履歴 データのスクレイピング](https://github.com/ayuina/scrape-azure-status-history)
 - [Azure の外部から Azure 仮想マシンの電源を上げ下げするサンプルスクリプト](./switch-vm-power)
 - [Azure Blob Storage の認証とアクセス制御](./azure-blob-control-and-data-access)

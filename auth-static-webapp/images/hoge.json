@@ -1,0 +1,4 @@
+{
+    "code": 401,
+    "message": "An error of type 'access_denied' occurred during the login process: 'AADSTS50105: The signed in user '{EmailHidden}' is not assigned to a role for the application 'cc29b601-42d1-4167-b105-a7b8b99bbfed'(my-first-static-webapp-custom-auth).\r\nTrace ID: e6788356-36a9-42f9-87f7-05fc29473703\r\nCorrelation ID: 21e1adec-29d9-4a01-ba2a-118bd97f2107\r\nTimestamp: 2021-07-14 04:44:47Z'"
+}
