@@ -213,7 +213,8 @@ $  az staticwebapp users invite \
 
 Staic Web Apps の API は[本家 Azure Functions に比べてかなり制約がある](https://docs.microsoft.com/ja-jp/azure/static-web-apps/apis)のですが、
 個人的に最も意外だったのは Functions Key による制御がかからずに、**デフォルトでは API を呼び出し放題** だったというのが 6 つめの衝撃です。
-たとえば以下のような C# Function を作っておいても、Static Web Apps のクライアントサイドからはキー無しであっさり呼び出せてしまうわけです。
+
+たとえば以下のような C# Function を作っておいたとします。
 
 ```c#
 // サーバーサイド API
@@ -230,7 +231,8 @@ public static async Task<IActionResult> Run(
     return new OkObjectResult(ret);
 }
 ```
-API キーで守っているつもりが・・・・
+
+Function スコープの API キーで保護しているつもりが、キー無しであっさり呼び出せてしまうわけです。
 
 ```javascript
 // クライアントサイドからの呼び出し
@@ -238,10 +240,10 @@ let payload = await (await fetch('./api/hello')).json();
 alert(payload.message);
 ```
 
-なので、API の呼び出しもルート規則でアクセス制御しましょう。
+というわけで、API の呼び出しもルート規則でアクセス制御しましょう。
 Static Web App でホストされる API は全て `/api` ルート配下で動作することになっていますので、その配下となるルート `/api/*` ないしは特定の API を保護してやればいいわけですね。
 
-前述の設定では `users` ロールに招待されたユーザーなら `/*` ルートにアクセス可能ですので、つまり `/api` 配下のルートにもアクセス可能、すなわち API 呼び出しが可能です。
+前述の設定では `users` ロールに招待されたユーザーなら `/*` ルートにアクセス可能ですので、つまり `/api` 配下のルートにもアクセス可能、すなわち API 呼び出しが可能ですが、未認証ならロールが `anonymous` しか無いので弾かれます。
 つまりこのままでもさしあたり世界中から無尽蔵に API を呼び出される事故は防ぐことができています。
 これを例えば `admin` ロールに招待された一部のユーザーのみに API 呼び出しを許可するのであれば、以下のような設定になるでしょうか。
 
