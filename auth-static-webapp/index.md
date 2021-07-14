@@ -127,6 +127,7 @@ Static Web Apps では[ルート毎にアクセス可能なロールを設定す
 ```json
 //staticwebapp.config.json
 {
+  "$schema": "https://json.schemastore.org/staticwebapp.config.json",
   "routes": [
     {
       "route": "/", "allowedRoles" : ["anonymous"]
@@ -156,6 +157,7 @@ Static Web Apps では[ルート毎にアクセス可能なロールを設定す
 ```json
 //staticwebapp.config.json
 {
+  "$schema": "https://json.schemastore.org/staticwebapp.config.json",
   "routes": [
     {
       "route": "/", "allowedRoles" : ["anonymous"]
@@ -219,6 +221,7 @@ Static Web App でホストされる API は全て `/api` ルート配下で動�
 ```json
 //staticwebapp.config.json
 {
+  "$schema": "https://json.schemastore.org/staticwebapp.config.json",
   "routes": [
     {
       "route": "/", "allowedRoles" : ["anonymous"]
@@ -238,7 +241,7 @@ Static Web App でホストされる API は全て `/api` ルート配下で動�
 
 ## カスタムロール割り当て可能人数が少なすぎる
 
-しかしここで問題が発生します。
+しかしここで問題があります。
 実は Static Web Apps には下記の[クォータ制限](https://docs.microsoft.com/ja-jp/azure/static-web-apps/quotas) があるのです。
 
 > カスタム ロールに属することができるエンドユーザーは最大 25 名
@@ -254,8 +257,80 @@ Static Web App でホストされる API は全て `/api` ルート配下で動�
 
 うーん、どうしよう。
 
+## ユーザー認証から制御しよう
 
+企業内の用途などで Static Web Apps へのアクセス制御を考えた場合、明示的なホワイトリスト制御が出来た方が使いやすいと考えます。
+ところが、上述の通り Static Web Apps が提供しているカスタムロールは割り当て可能な人数が極めて限定的なため、ホワイトリスト用途で使うには向かないのが現状だと思います。
 
+既定で有効になっている認証（Managed Authentication）は、`Azure Static Web Apps (Application ID == d414ee2d-73e5-4e5b-bb16-03ef55fea597)` というマルチテナントアプリケーションに対して認証を行う仕掛けになっています。
+このためユーザーが所属する任意のテナントに対して認証を委託することが出来るようになっているわけです。
+
+![managed authentication](./images/managed-authentication-aad.png)
+
+前述の画面キャプチャにある通り Azure Static Web Apps というアプリはユーザーが管理されている各ディレクトリ１つ１つにエンタープライズアプリケーション(Object ID はテナント固有)として登録されていますので、（一定の権限があるユーザーであれば）このアプリケーションに対してユーザーを割り当てることが可能です。
+ただしこの方法では以下の問題が発生します。
+
+- 全ての Azure Static Web App 全体に対する割り当てであるため、特定の Static Web Apps に対するホワイトリストにはならない
+- 当該テナントに対しては明示的に割り当てられたユーザーのみに利用を制限することができるが、他のテナントのユーザー認証には効果がない
+
+この解決策としては [Custom Authentication](https://docs.microsoft.com/ja-jp/azure/static-web-apps/authentication-custom?tabs=aad) を使用して独自の Azure AD アプリケーションとして認証する方式が考えられます。
+各 Static Web Apps が認証に利用する Azure AD アプリケーションを既定の `Azure Static Web Apps` ではなく、独自のアプリケーションオブジェクトを使用するように、Azure AD 認証プロバイダーを上書き（Override）してやれば良いわけです。
+
+![custom authentication](./images/custom-authentication-aad.png)
+
+アプリ登録時にシングルテナントとして構成してやれば、組織外テナントのユーザーの認証を排除することができます。
+また個々の Static Web Apps 単位でエンタープライズアプリケーションが管理できるようになるので、
+[ユーザー割り当て](https://docs.microsoft.com/ja-jp/azure/active-directory/manage-apps/assign-user-or-group-access-portal)
+によるホワイトリスト制御も現実的になります。
+また、こちらの方法であればユーザー単位ではなくグループに対する割り当ても可能です。
+
+さて実装方法は以下のようになります。
+
+- Azure AD 側の設定
+  - 作成した Static Web Apps リソースを表す[アプリケーションを登録](https://docs.microsoft.com/ja-jp/azure/active-directory/develop/active-directory-how-applications-are-added)
+  - サポートされているアカウントの種類としてシングルテナントを指定
+  - リダイレクト URI は Static Web Apps の認証プロバイダーへのコールバック URL を指定
+    - https://_webapp-domain-name_.azurestaticapps.net/.auth/login/aad/callback
+  - 生成されたアプリケーション (クライアント) ID を控える
+  - ディレクトリ（テナント）ID を控える
+  - クライアントシークレットを生成して控える
+- Static Web Apps 側の設定
+  - `構成` 画面でアプリケーション設定に控えておいたクライアント ID とクライアントシークレットを登録
+  - `staticwebapp.config.json` ファイルで Azure AD プロバイダの設定を上書きする
+    - `openIdIssuer` のテナント ID 部分を控えておいたテナント ID に書き換える
+    - `clientIdSettingName` および `clientSecretSettingName` は控えた値ではなく、アプリケーション設定の名前に書き換える
+
+![custom authentication configuration](./images/custom-auth-appregist.png)
+
+```json
+//staticwebapp.config.json
+{
+  "$schema": "https://json.schemastore.org/staticwebapp.config.json",
+  "auth": {
+      "identityProviders": {
+          "azureActiveDirectory": {
+              "registration": {
+                  "openIdIssuer": "https://login.microsoftonline.com/your-app-registered-tenantid",
+                  "clientIdSettingName": "AAD_ClientID",
+                  "clientSecretSettingName": "AAD_Client_Secret"
+              }
+          }
+      }
+  },
+  "routes": [
+    // 省略
+  ]
+}
+```
+
+ここまでの設定で、当該 Static Web Apps は指定した Azure AD テナントユーザーしか認証できなくなりますので、外部の Azure AD テナントや、Twitter や GitHub などの他のプロバイダーの認証も出来なくなります。（認証を聞かれることもなく 401 Unauthorized で弾かれる）
+また初回アクセス時の同意対象も Azure Static Web Apps ではなく、登録したアプリケーションになります。
+
+![consent registered application](./images/consent-registered-app.png)
+
+さらに、同一テナント内でも一部のユーザーのみにアクセスを制限したい（ホワイトリスト制御をしたい）場合には、エンタープライズアプリケーションが作成されているはずなので、そちらでユーザー割り当てを強制し、アクセスを許可するユーザーやグループを登録していきます。
+
+![assign user](./images/assign-user.png)
 
 
 
