@@ -43,16 +43,12 @@ Twitter ID でユーザーを認証したいのであれば Twitter 用の Login
 ![consent twice](./images/consent-twice.png)
 
 どうもこの Static Web Apps というのはそれ全体で１つのアプリケーションとしてプロバイダーに登録されているようで、Azure Active Directory の管理画面ではエンタープライズアプリケーションを確認できます。
-つまり一度 Static Web Apps に対する１つめの同意をすると、別の Static Web Apps にアクセスしても同じプロバイダーを使っている場合には２つ目の同意だけが表示されることになります。
+つまり一度 Static Web Apps に対する１つめの同意をすると、別の Static Web Apps にアクセスしても同じプロバイダーを使っている場合には２つ目の同意だけが表示されることになります。いつも使ってるはずの Azure Active Directory なのに **同意画面や画面遷移がいつもと違うな？** という 2 つ目の衝撃でした。
 
 なおこの Static Web Apps への同意後は各ユーザーの [マイアプリ](https://myapps.microsoft.com/) ポータルで確認することができます。
 同意を取り消したい場合はこちらから `権限の取り消し` をしてやれば１つめの同意を取り消すことが出来ます。
 
 ![consent apps](./images/consent-apps.png)
-
-2つ目の同意を取り消したい場合は
-
-いつも使ってるはずの Azure Active Directory なのに **同意画面や画面遷移がいつもと違うな？** という 2 つ目の衝撃でした。
 
 
 ## アクセストークンは貰えない（クライアントサイド）
@@ -100,7 +96,8 @@ const me = await ret.json();
 
 ## アクセストークンは貰えない（サーバーサイド）
 
-Static Web Apps では Functions ベースのサーバーサイド API もホストできるわけですが、ユーザーが認証済みであればサーバーサイドでもユーザー情報を取得することが出来ます。
+Static Web Apps では Functions ベースの[サーバーサイド API もホストできる](https://docs.microsoft.com/ja-jp/azure/static-web-apps/add-api)わけですが、
+ユーザーが認証済みであればサーバーサイドでもユーザー情報を取得することが出来ます。
 ユーザー情報は `x-ms-client-principal` リクエストヘッダーにセットされてきますので、その値を Base64 でデコードしして ASCII で文字列に戻してやれば、クライアントサイドと全く同じ情報が手に入ります。
 
 ```c#
@@ -111,11 +108,11 @@ var message = $"Hello {cp.userDetails} !!!"
 
 つまりクライアントサイドと同様に用途は限られそう、ということですかね。
 なのでメトリックやイベントの情報収集時にユーザー情報を紐付けたトラッキング用途が主体になりそうかなあ、といったところでしょうか。
-この情報だけだとユーザーのフリをして外部サービスを呼び出すこと Authorization Code Grant Flow 的なことはできなさそうなので、API 側でクレデンシャルを保持する Client Credential Flow にせざるを得ないかなというところです。
+この情報だけだとユーザーのフリをして外部サービスを呼び出す Authorization Code Grant Flow 的なことはできなさそうなので、API 側でクレデンシャルを保持する Client Credential Flow にせざるを得ないかなというところです。
 
 ## 匿名アクセスはお断り
 
-さて Static Web Apps は既定では匿名アクセスが可能ですので、世界中の誰でも利用可能な状態です。
+さて Static Web Apps は既定では匿名アクセスが可能ですので、作った直後は世界中の誰でも匿名で利用可能な状態です。
 それがサイトの目的に適っていればいいのですが、ユーザートラッキングなどの目的からアクセスユーザーを特定したいということもあるでしょう。
 つまり前述のユーザー認証を強制したい（身元が特定できてないユーザーにはコンテンツにアクセスさせたくない）わけです。
 
@@ -149,10 +146,10 @@ Static Web Apps では[ルート毎にアクセス可能なロールを設定す
 
 前述の方法ですとユーザー認証を強制することはできますが、逆に言えば Azure Active Directory、Twitter、GitHub の ID さえ持っていれば誰でもアクセスできるわけです。
 そもそもどの ID も取得は無料かつ容易なので、これを持ってアクセス制御という事は出来ないでしょう。
-アクセス制御というからには **特定のユーザーのみにアクセスを許可したい** わけです。
+身元さえ確認できれば(authenticated)誰でも使っていいよ、というサイトならともかく、 **特定のユーザーのみにアクセスを許可したい** ことも多いのではないでしょうか。
 
-これを実現するためには個々のユーザーに対してカスタムロールを割り当て、そのロールにのみルートへのアクセスを許可すれば良いわけです。
-例えばこのアプリケーションには `users` というロールがあるとすると、前述のルート定義は以下のようになります。
+このようなアクセス制御を実現するためには個々のユーザーに対してカスタムロールを割り当て、そのロールにのみルートへのアクセスを許可する方法が考えられます。
+例えばこのアプリケーションに `users` というロールがあるとすると、前述のルート定義は以下のように書くことができます。
 
 ```json
 //staticwebapp.config.json
@@ -172,7 +169,8 @@ Static Web Apps では[ルート毎にアクセス可能なロールを設定す
 }
 ```
 
-せっかくログインしていても認証されている `authenticated` だけでは不足するので、`index.html` 以外のコンテンツへのアクセスはすべて `401 : Unauthorized` エラーで拒否されます。ではどうすれば `users` ロールの仲間に入れてもらえるのでしょうか。
+せっかくログインしていても認証されている `authenticated` だけではロールが合わないので、`index.html` 以外のコンテンツへのアクセスはすべて `401 : Unauthorized` エラーで拒否されます。
+ではどうすれば `users` ロールの仲間に入れてもらえるのでしょうか。
 Static Web Apps には「ロール管理」というメニューがありますので、管理者にお願いしてここから `招待` してもらうことになります。
 
 ![role management](./images/role-management.png)
@@ -181,6 +179,35 @@ Static Web Apps には「ロール管理」というメニューがあります�
 招待されたユーザーはこのリンク先を開いてログインを行うと招待を受け入れた事になるので、ロール管理画面にユーザー情報が追加されます。
 この招待されたユーザーがログインするとユーザー情報として招待時に割り当てられたロールを持っている状態になりますので、そのロールで許可されたルートに対してはアクセスが可能になるわけですね。
 でも Azure AD B2B のように **招待メールとか送信してくれない**んだ・・・、 というのが5つ目の衝撃でした。
+
+ちなみに画面で1つ1つ登録してはコピーして、という操作は招待するユーザー数が多くなってくると煩雑です。
+ある程度の数があるならばスクリプトで実行したほうが楽でしょう。
+メールやチャットでの送信まで自動化してしまうのも良いのではないでしょうか。
+
+```bash
+$  az staticwebapp users invite \
+      -g resourceGroupName \
+      -n staticWebAppsName \
+      --domain  webapp-domain-name.azurestaticapps.net \
+      --authentication-provider AAD \
+      --invitation-expiration-in-hours 1 \
+      --roles users \
+      --user-details "targetuser@yourdomain.com"
+```
+```json
+{
+  "expiresOn": "2021-07-14T01:51:20.747501+00:00",
+  "id": "/subscriptions/subscription-guid/resourceGroups/resourceGroupName/providers/Microsoft.Web/staticSites/staticWebAppsName/invitations/invitatioin-guid",
+  "invitationUrl": "https://webapp-domain-name.azurestaticapps.net/.auth/invitations/accept?provider=AAD&userDetails=targetuser%40yourdomain.com&roles=users&se=2021-07-14T01%3A51%3A20Z&sig=...",
+  "kind": null,
+  "location": "Central US",
+  "name": "guid-guid-guid",
+  "resourceGroup": "my-first-static-web-app",
+  "systemData": null,
+  "type": "Microsoft.Web/staticSites/invitations"
+}
+```
+
 
 ## バックエンド API も守りたい
 
