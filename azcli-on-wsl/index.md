@@ -135,3 +135,54 @@ $ docker run -it mcr.microsoft.com/azure-cli /bin/bash
 - Windows 版と Linux 版の両方が提供されているソフトウェアは、WSL 側にもちゃんと Linux 版をインストールしたほうが無難
 - ソフトウェアの動作要件やインストール手順などはちゃんと確認しましょう
 
+## 余談
+
+こちらはもう余談でしかないのですが、そもそも私がはまっていたトラブルの内容を紹介します。
+az コマンドで取得した結果を変数に格納し、それを後続のコマンドで使用する、というのはよくある話かと思います。
+例えば Azure サブスクリプション ID を使用したいような下記のようなコードです。
+
+```bash
+$ az account show --query 'id' --output json
+"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+```
+
+これをダブルクォーテーション無しで変数に格納したい場合によくやられるのは tsv 形式で出力するというものでしょう。
+
+```bash
+$ HOGE=`az account show --query 'id' --output tsv`
+```
+
+ところがこの変数に格納した値を使うと、どーしてもエラーで落ちるコマンドがありました。
+なので試行錯誤の挙句、ダブルクォーテーションの間を切り抜く以下のようなコードにするとエラーが解消できてしまったんですね。
+
+```bash
+$ FUGA=`az account show --query 'id' --output json | cut -f2 -d"\""`
+```
+
+これらの変数の値を比較してみると、以下のような結果になります。
+どーもこれ、最初か最後に制御文字化何か混じってるんですかね・・・
+
+```bash
+$ echo $HOGE | wc -c
+38
+
+$ echo $FUGA | wc -c
+37
+```
+
+これは Azure CLI のバグじゃないかなーと疑ってみたのですが、Linux 版の Azure CLI でやるとこうなります。
+うん正しい。
+
+```bash
+$ HOGE=`az account show --query 'id' --output tsv`
+$ echo $HOGE | wc -c
+37
+
+$ FUGA=`az account show --query 'id' --output json | cut -f2 -d"\""`
+$ echo $FUGA | wc -c
+37
+```
+
+原因は WSL の相互運用なのか Python なのか Azure CLI なのか、あるいはその組み合わせなのかが定かではないのですが、
+まあとりあえずドキュメントの記載通り、WSLを使うときは Linux 版の Azure CLI をインストールしておこうと思いました。
+あるいは Visuals Studio Code 使ってるんだから Dev Container ちゃんと使おうと思います。
