@@ -2,7 +2,7 @@
 
 ### コンテンツ
 
-- [azcli-on-wsl](./Windows Subsytem for Linux で Azure CLI を動作させる話)
+- [Windows Subsytem for Linux で Azure CLI を動作させる話](./azcli-on-wsl)
 - [Azure Static Web Apps の認証とアクセス制御まわりで気になったところ](./auth-static-webapp)
 - [Azure の状態の履歴 データのスクレイピング](https://github.com/ayuina/scrape-azure-status-history)
 - [Azure の外部から Azure 仮想マシンの電源を上げ下げするサンプルスクリプト](./switch-vm-power)
