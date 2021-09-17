@@ -19,17 +19,19 @@ title: Application Gateway のパスベースルーティングの背後にあ�
 図中右側の仮想ネットワークには ILB [ASE v3](https://docs.microsoft.com/ja-jp/azure/app-service/environment/overview) と 
 [Application Gateway](https://docs.microsoft.com/ja-jp/azure/application-gateway/overview) v2 を設置しています。
 
-- ASE には 2 つの Web App を設置し、それぞれを Application Gateway のバックエンドプールとして設定します。
-- 各 Web App は Application Gateway 以外からのリクエストを受け付けてしまわないように [IP アドレス制限](https://docs.microsoft.com/ja-jp/azure/app-service/app-service-ip-restrictions) を設定します。
+- App Service Environment の構成
+    - ASE に 2 つの Web App を設置します。
+    - 各 Web App は Application Gateway 以外からのリクエストを受け付けてしまわないように [IP アドレス制限](https://docs.microsoft.com/ja-jp/azure/app-service/app-service-ip-restrictions) を設定します。
 
 ![](./images/webapp-setting.png)
 
-- それぞれに対して [URL パスベースルーティング](https://docs.microsoft.com/ja-jp/azure/application-gateway/url-route-overview)を設定することでリクエストを振り分けます。
-- 各 Web App は ASE に割り当てられた単一の Private IP アドレスでホストされる構成になっているため、[各ルートの HTTP 設定でホスト名のオーバーライドを行います](https://docs.microsoft.com/ja-jp/azure/application-gateway/application-gateway-web-app-overview)。
-- この後で Web App の認証設定を行うためクライアントとの Application Gateway 間の通信を [TLS で暗号化します](https://docs.microsoft.com/ja-jp/azure/application-gateway/ssl-overview)
-    - つまり TLS 構成のためのカスタムドメインとサーバー証明書は別途用意が必要です。
-    - [App Service ドメイン](https://docs.microsoft.com/ja-jp/azure/app-service/manage-custom-dns-buy-domain) および [App Service 証明書](https://docs.microsoft.com/ja-jp/azure/app-service/configure-ssl-certificate#import-an-app-service-certificate)を Application Gateway に割り当てて利用することも可能です。
-
+- Application Gateway の構成
+    - 作成した各 Web App のそれぞれを Application Gateway のバックエンドプールとして設定します。
+    - パスとバックエンドプールをマッピングする [URL パスベースルーティング](https://docs.microsoft.com/ja-jp/azure/application-gateway/url-route-overview)を設定してリクエストを振り分けます。
+    - 各 Web App は ASE に割り当てられた単一の Private IP アドレスでホストされる構成になっているため、[各ルートの HTTP 設定でホスト名のオーバーライドを行います](https://docs.microsoft.com/ja-jp/azure/application-gateway/application-gateway-web-app-overview)。
+    - この後で Web App の認証設定を行うためクライアントとの Application Gateway 間の通信を [TLS で暗号化します](https://docs.microsoft.com/ja-jp/azure/application-gateway/ssl-overview)
+        - TLS 構成のためのカスタムドメインとサーバー証明書は別途用意が必要です。
+        - [App Service ドメイン](https://docs.microsoft.com/ja-jp/azure/app-service/manage-custom-dns-buy-domain) および [App Service 証明書](https://docs.microsoft.com/ja-jp/azure/app-service/configure-ssl-certificate#import-an-app-service-certificate)を Application Gateway に割り当てて利用することも可能です。
 
 ![appgw-settings](./images/appgw-settings.png)
 
@@ -39,7 +41,7 @@ title: Application Gateway のパスベースルーティングの背後にあ�
 - 右側の VNET とピアリングを構成して Application Gateway にネットワーク接続を可能にする
 - 先ほど TLS を構成したドメイン名が Application Gateway の Private IP アドレスに解決できるように DNS を構成
 
-各 Web App には異なる Web ページでも配置して起き、ブラウザ等から Application Gateway にアクセスすると URL のパス部分（上記では /001 と /002）で Web ページを切り替えられることを確認します。
+各 Web App には異なる HTML ファイルでも配置して起き、ブラウザ等から Application Gateway にアクセスすると URL のパス部分（上記では /001 と /002）で 2 つの Web アプリを切り替えられることを確認します。
 なおここでは記載していないですが、右側の VNET にも保守端末代わりの VM を一台作っておくとアプリの配置などが試しやすいので便利です。  
 
 ## Web App で Azure Active Directory 認証を構成する
@@ -193,6 +195,8 @@ Application Gateway がバックエンドにリクエストを出す際にもこ
 |バックエンドパスもオーバーライド|https://myappgw.ainabams.net/001/.auth/login/aad/callback|https://webapp01.myase.appserviceenvironment.net/001/.auth/login/aad/callback|この状態が必要|
 
 このバックエンドパスのオーバーライドには HTTP 設定を使用します。
+これを構成するためには各 Web App ごとに異なる HTTP 設定が必要になることに注意下さい。
+上記の例で言えば /002 向けのルートにはこの HTTP 設定を共有することができません。
 
 ![override backend path](./images/override-backend-path.png)
 
