@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Microsoft のクラウドサービスを無償で評価する
+title: Microsoft クラウドの評価環境を無償で構築するには
 ---
 
 ## はじめに

@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Microsoft クラウドの評価環境を無償で構築するには](./microsoft-cloud-trial)
 - [Application Gateway のパスベースルーティングの背後にある Web App の EasyAuth で Azure AD 認証を有効にする話](./appgw-pathbased-routing-and-easyauth)
 - [Windows Subsytem for Linux で Azure CLI を動作させる話](./azcli-on-wsl)
 - [Azure Static Web Apps の認証とアクセス制御まわりで気になったところ](./auth-static-webapp)
