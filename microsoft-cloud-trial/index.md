@@ -5,8 +5,8 @@ title: Microsoft のクラウドサービスを無償で評価する
 
 ## はじめに
 
-各種クラウドサービスは無償評価版などが提供されていることが多く、期間や機能に制約はありますが実際に購入する前にサービスの内容を試すことで、その価値を評価することが可能です。
-Microsoft の各種クラウドサービスもそれぞれ無償評価版が提供されているわけですが、以下の理由から若干使いにくくなっているのではないかと思います。
+各種クラウドサービスは無償評価版などが提供されていることが多いので、実際に購入する前にサービスの価値を確認することが可能です。
+もちろん Microsoft の各種クラウドサービスもそれぞれ無償評価版が提供されているわけですが、以下の理由から若干使いにくくなっているのではないかと思います。
 
 - Microsoft が提供するクラウドサービスは複数あり、それぞれ評価版を利用するための手続きなどが異なる
 - どのクラウドサービスも Azure Active Directory で認証する設計になっており、適当に評価版にサインアップすると勝手に Azure AD テナントが作られたりする
@@ -16,16 +16,20 @@ Microsoft の各種クラウドサービスもそれぞれ無償評価版が提�
 
 - Azure Active Directory
 - Microsoft 365
-- Power Platform
+- Power Apps
 - Microsoft Azure
 
 ## 事前準備
 
-構築開始前に以下のものをご用意ください。
+さて評価環境そのものを構築する方は事前に以下のものをご用意ください。
 
 - 送受信が可能なメールアドレス（仕事で使っているものでもフリーのものでも構いません）
 - SMS が受信可能な電話番号（仕事で使っているものでも個人のものでも構いません）
 - Edge や Chrome 等のモダンブラウザ（複数あると便利）
+- アクセス先に制限の無いインターネット回線
+
+各評価版の期間はおおむね 30 日です。
+作業を効率的に進めるために、評価項目や評価メンバーのアサインなども事前に行っておきましょう。
 
 ## Azure Active Directory 評価環境の構築
 
@@ -172,5 +176,58 @@ Premium P2 に含まれる機能が評価対象でなかったとしても、こ
 ![use microsoft 365 applications](./images/m365-use-app.png)
 
 同様に Microsoft 365 の機能評価を行う各ユーザーも、Azure Active Directory にユーザーが作成されており、Microsoft 365 のライセンスが割り当てられていれば、同様にアプリポータルから評価作業を開始することができます。
+
+
+## Power Apps 評価環境の構築
+
+次に Power Apps です。
+Microsoft 365 に付属のライセンスでも一定の利用は可能なのですが、その価値を最大限に評価する上では [開発者プラン](https://docs.microsoft.com/ja-jp/powerapps/maker/developer-plan) にサインアップすると良いでしょう。
+この開発者プランは Power Apps だけでなく Power Automate や Dataverse も利用でき、また期間の縛りがありません。
+（つまり試用版というよりは、開発用途に限定された無料のライセンスです）
+
+### Power Apps 開発者の初期サインイン
+
+先ほど作ったばかりの Power Apps 開発者のユーザーアカウントは、まだ完全には有効化されていない状態です。
+InPrivate ブラウズの Edge やシークレットモードの Chrome を開き、アプリポータル（[https://myapps.microsoft.com](https://myapps.microsoft.com)）から一度サインインしておくことで、アカウントを有効な状態にしましょう。
+初期パスワードの変更を求められるはずですので、忘れないように控えておいてくださいね。
+
+
+### Power Apps 開発者プランのサインアップ
+
+Power Apps 開発者のユーザーアカウントでサインインした状態のブラウザから、[開発者向けプラン](https://powerapps.microsoft.com/ja-jp/developerplan/)のページを開きます。
+
+![papp-start-devplan.png](./images/papp-start-devplan.png)
+
+`無料で始める`を選択し、画面に表示される手続きにそってサインアップ作業を進めます。
+
+![papp-activate-devplan](./images/papp-activate-devplan.png)
+
+- Power Apps 開発者のユーザーアカウントでサインインしていることを確認します
+- 所在地や電話番号などを入力します
+- 最後に`同意`することで利用可能になります
+
+### Power Apps アプリの開発
+
+それでは開発者向けプランを利用してみましょう。
+このまま Power Apps 開発者のユーザーアカウントで [https://make.powerapps.com](https://make.powerapps.com) にサインインして開発作業を開始します。
+
+![papp-dev-canvas](./images/papp-dev-canvas.png)
+
+- 環境が `Developer Environment` になっていることを確認
+- 適当なキャンバスアプリを作成
+- 出来上がったアプリを他のユーザーに`共有`
+
+終わったらブラウザを閉じてください。
+
+### 共有された Power Apps アプリの利用
+
+それでは動作確認です。
+InPrivate ブラウズの Edge やシークレットモードの Chrome を開き、先ほどアプリが共有されたユーザーで[アプリポータル](https://myapps.microsoft.com) にサインインしてください。
+
+![play canvas app](./images/papp-play-canvas-app.png)
+
+- Microsoft 365 のライセンスが割り当たっていればアプリポータルに `Outlook` が表示されているはずです
+- Outlook を開くとアプリが共有された旨を通知するメールが届いていることと思います
+- `アプリを開く` と先ほど開発して共有したアプリの動作が確認できます
 
 
