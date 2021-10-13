@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [調子の悪い Azure Web App の Web Worker を再起動する](./reboot-appservice-worker)
 - [Microsoft クラウドの評価環境を無償で構築するには](./microsoft-cloud-trial)
 - [Application Gateway のパスベースルーティングの背後にある Web App の EasyAuth で Azure AD 認証を有効にする話](./appgw-pathbased-routing-and-easyauth)
 - [Windows Subsytem for Linux で Azure CLI を動作させる話](./azcli-on-wsl)
