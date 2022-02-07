@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure の可用性ゾーンを利用した信頼性設計](./azure-zone-redundant)
 - [Power Apps キャンバスアプリに地図を表示する](./powerapp-with-map)
 - [調子の悪い Azure Web App の Web Worker を再起動する](./reboot-appservice-worker)
 - [Microsoft クラウドの評価環境を無償で構築するには](./microsoft-cloud-trial)
