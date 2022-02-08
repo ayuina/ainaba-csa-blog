@@ -263,3 +263,20 @@ Azure Files しか使えない。
 ### スロット
 
 これも最初は Managed IDが割り当てられない、、、
+
+
+
+## 監視とか（これは別に分けるかも）
+
+Log Monitor
+App Service Log 
+IIS Log
+HTTP Ping
+App Insight は手動インスコ
+
+
+## 常駐型アプリ（これは別に分けるかも）
+
+Azure Functions が使えない
+普通にコンソールアプリ作ってやる感じ
+Windows Service なら Service Monitor 使えば良さそう
