@@ -183,11 +183,20 @@ ENTRYPOINT ["C:\\ServiceMonitor.exe", "w3svc"]
 
 まずビルド用のコンテナでは .NET Framework SDK のベースイメージを使用していますが、別途作っておいた ASP.NET アプリのターゲットフレームワークが 4.7.2 だったためバージョンを揃えています。
 最新版である .NET Framework 4.8 にターゲットを変更してビルドしてもよいのですが、開発環境である Visual Studio などの設定にも手が入るためバージョンはそのままにしています。
-なお、これまで Visual Studio を使用して手動でビルドしていた場合には、コマンドライン(msbuild.exe)を使用してのビルドになるので成功するまでは試行錯誤が必要になるかもしれません。
-何らかの自動ビルドシステムを利用していたならば、配置用のビルドバイナリを自動生成するプロセスが既に存在するわけですので、ここは飛ばして後半の実行環境用のコンテナイメージのビルドだけで良いかもしれません。
+コンテナ内でビルドするはコマンドライン(msbuild.exe)を使用してのビルドと発行をすることになるので、久しぶりにやってみるとかなり癖があるので成功するまでは試行錯誤が必要になるかもしれません。
+以下は参考情報です。
 
-さて実行環境用のコンテナは Web Apps for Container で動かしたいので、そのサポートの関係から実行環境では .NET Framework 4.8 になります。
+- [Web アプリケーション プロジェクトのビルドとパッケージ化](https://docs.microsoft.com/ja-jp/aspnet/web-forms/overview/deployment/web-deployment-in-the-enterprise/building-and-packaging-web-application-projects)
+- [.NET Framework container sample](https://github.com/microsoft/dotnet-framework-docker)
+- [How to Publish Web with msbuild?](https://stackoverflow.com/questions/3097489/how-to-publish-web-with-msbuild?rq=1)
+- [How to Fix Missing NuGet Packages in Azure DevOps](https://improveandrepeat.com/2020/06/how-to-fix-missing-nuget-packages-in-azure-devops/)
+
+これまで何らかの自動ビルドシステムを利用していたならば、配置用のビルドバイナリを自動生成するプロセスが既に存在するわけですので、ここは飛ばして後半の実行環境用のコンテナイメージのビルドだけで良いかもしれません。
+
+
+次に実行環境用のコンテナは Web Apps for Container で動かしたいので、そのサポートの関係から実行環境では .NET Framework 4.8 になります。
 前述の通りターゲットフレームワークを変更せずに 4.7.2 向けのビルドバイナリを生成していますので、ここでは .NET Framework の後方互換性に頼ることになります。
+というわけでビルド用のコンテナでファイルシステムに発行したファイル軍を、IIS のサイトルートに COPY してやればいいわけですね。
 今回は 4.7.2 から 4.8 なので比較的バージョンも近く、非互換が発生する可能性は比較的小さいのですが、バージョンの乖離が大きい場合にはもっと手間がかかるかもしれません。
 
 ソースコードをソース管理システムから取り寄せて、上記の Dockerfile を合わせてビルドしていきます。
@@ -269,8 +278,10 @@ Azure Files しか使えない。
 ## 監視とか（これは別に分けるかも）
 
 Log Monitor
+https://techcommunity.microsoft.com/t5/containers/windows-containers-log-monitor-opensource-release/ba-p/973947
 App Service Log 
 IIS Log
+https://blogs.iis.net/owscott/flush-iis-http-and-ftp-logs-to-disk
 HTTP Ping
 App Insight は手動インスコ
 
