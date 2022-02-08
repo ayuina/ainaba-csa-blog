@@ -14,10 +14,10 @@ title: Azure Web Apps for WINDOWS Container (.NET Framework) 開発のメモ
 
 - [Azure でカスタム コンテナーを実行する](https://docs.microsoft.com/ja-jp/azure/app-service/quickstart-custom-container?tabs=dotnet&pivots=container-windows)
 - [Azure App Service のカスタム コンテナーを構成する](https://docs.microsoft.com/ja-jp/azure/app-service/configure-custom-container?pivots=container-windows)
-- [Windows のコンテナーに関するドキュメント](https://docs.microsoft.com/ja-jp/virtualization/windowscontainers/)
 - [Azure App Service Team Blob - Windows Containers](https://azure.github.io/AppService/windows-containers/)
+- [Windows のコンテナーに関するドキュメント](https://docs.microsoft.com/ja-jp/virtualization/windowscontainers/)
+- [Windows コンテナーとして既存の .NET アプリを展開する](https://docs.microsoft.com/ja-jp/dotnet/architecture/modernize-with-azure-containers/modernize-existing-apps-to-cloud-optimized/deploy-existing-net-apps-as-windows-containers)
 - [.NET Framework のアプリケーションの互換性](https://docs.microsoft.com/ja-jp/dotnet/framework/migration-guide/application-compatibility)
-
 
 ## ASP.NET Web アプリケーションの Windows Server コンテナ化
 
