@@ -288,6 +288,12 @@ Web App の作成が終わったら以下の手順を実施していくことに
 
 ![acrpull-using-managedid](./images/acrpull-using-managedid.png)
 
+イメージが更新されたことを検知すると Web Apps は自動的にコンテナイメージを Pull して起動、実行中のコンテナと切り替えてくれます。
+その進捗状況はデプロイセンターのログタブから参照可能です。
+
+![my container app](./images/my-container-app.png)
+
+
 ### コンテナ内のアプリから Managed ID で外部リソースにアクセスする
 
 先ほど有効化したマネージド ID ですが、ACR からのコンテナイメージの Pull だけでなく、コンテナ内部で動作するアプリケーションから利用することもできます。
