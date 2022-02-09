@@ -105,14 +105,14 @@ Docker for Windows Desktop を使うのが一番楽ちんではあるのです�
 決してライセンス費用をケチっているわけではありません（VMの方が高額ですし）。
 
 - Windows Server な Docker Image がバカデカいので、我が家の非力な PC と Network 環境では辛い
-- 最近は Mac を使って開発することも多いので、リモート開発環境は結局必要になる
+- 最近は Mac を使って開発することも多いので、Windows なリモート開発環境があった方が便利
 - 作ったイメージは Azure Container Registry に Push して Web Apps から Pull するので、 Azure 内で完結させた方が速い
 - 開発対象のアプリに合わせたバージョンの Visual Studio をインストールしても他とコンフリクトしない
 - Web App を VNET 統合したり Private Link サービスと接続する閉域構成を取ることが多く、どうせ VNET 内に作業マシンが必要になる
 - etc...
 
 というわけで Windows Server 2019 な Azure VM を作ることとします。
-新しめの Windows Server バージョンでも構わないのですが、バージョンを揃えておくことで以下の様なメリットがあります。
+新しめの Windows Server バージョンでも構わないのですが、コンテナイメージとバージョンを揃えておくことで以下の様なメリットがあります。
 
 - 互換性のあるバージョンを選択するとプロセス分離モードが利用できるので動きが軽くなる
 - ホスト側で同じバージョンの IIS 管理ツールなどを使った確認ができる
@@ -182,8 +182,10 @@ ENTRYPOINT ["C:\\ServiceMonitor.exe", "w3svc"]
 ```
 
 まずビルド用のコンテナでは .NET Framework SDK のベースイメージを使用していますが、別途作っておいた ASP.NET アプリのターゲットフレームワークが 4.7.2 だったためバージョンを揃えています。
-最新版である .NET Framework 4.8 にターゲットを変更してビルドしてもよいのですが、開発環境である Visual Studio などの設定にも手が入るためバージョンはそのままにしています。
-コンテナ内でビルドするはコマンドライン(msbuild.exe)を使用してのビルドと発行をすることになるので、久しぶりにやってみるとかなり癖があるので成功するまでは試行錯誤が必要になるかもしれません。
+最新版である .NET Framework 4.8 にターゲットを変更してビルドしてもよいのですが、その場合は保守作業をする Visual Studio などの設定も修正することになるため、ここではバージョンはそのままにしています。
+コンテナ内でビルドするはコマンドライン(msbuild.exe)を使用してのビルドと発行をすることになるります。
+久しぶりにやってみるとかなり癖があるというか、わかりにくいんですよねコレ。
+慣れてない人は成功するまでは試行錯誤が必要になるかもしれません。
 以下は参考情報です。
 
 - [Web アプリケーション プロジェクトのビルドとパッケージ化](https://docs.microsoft.com/ja-jp/aspnet/web-forms/overview/deployment/web-deployment-in-the-enterprise/building-and-packaging-web-application-projects)
@@ -194,12 +196,12 @@ ENTRYPOINT ["C:\\ServiceMonitor.exe", "w3svc"]
 これまで何らかの自動ビルドシステムを利用していたならば、配置用のビルドバイナリを自動生成するプロセスが既に存在するわけですので、ここは飛ばして後半の実行環境用のコンテナイメージのビルドだけで良いかもしれません。
 
 
-次に実行環境用のコンテナは Web Apps for Container で動かしたいので、そのサポートの関係から実行環境では .NET Framework 4.8 になります。
+次に実行環境用のコンテナは Web Apps for Container で動かしたいので、そのサポートの関係から実行環境では .NET Framework 4.8 のベースイメージを採用しています。
 前述の通りターゲットフレームワークを変更せずに 4.7.2 向けのビルドバイナリを生成していますので、ここでは .NET Framework の後方互換性に頼ることになります。
 というわけでビルド用のコンテナでファイルシステムに発行したファイル軍を、IIS のサイトルートに COPY してやればいいわけですね。
 今回は 4.7.2 から 4.8 なので比較的バージョンも近く、非互換が発生する可能性は比較的小さいのですが、バージョンの乖離が大きい場合にはもっと手間がかかるかもしれません。
 
-ソースコードをソース管理システムから取り寄せて、上記の Dockerfile を合わせてビルドしていきます。
+さてソースコードをソース管理システムから取り寄せて、上記の Dockerfile を合わせてビルドしていきます。
 例えば以下の様な感じでしょうか。
 ここでは Web アプリのプロジェクトファイル（.csproj）のあるディレクトリに Dockerfile を置いている想定です。
 
@@ -236,6 +238,12 @@ PS > az acr login --name $ACRNAME
 PS > docker push "${ACRNAME}.azurecr.io/webform1:v1"
 ```
 
+ここではしれっと管理キーを使わずにログインしてアクセスしていますが、`az login` に利用する ID は Azure Container Registry に対してアクセス許可を得るためには
+[AcrPush などのロールの割り当てが必要です](https://docs.microsoft.com/ja-jp/azure/container-registry/container-registry-roles?tabs=azure-cli)。
+通常のユーザーではなく CI/CD パイプラインによる自動化をするのであれば、サービスプリンシパルや Managed ID を使用してください。
+例えば先ほど構築した開発環境のような仮想マシンで実行するのであれば、システム割り当てマネージド ID を有効化し、AcrPush ロールに割り当てておくと、
+`az login --identity` でパスワードや証明書情報の管理や入力が不要で ACR の操作が可能になります。
+
 ## Web Apps for Container へのコンテナ配置と実行
 
 さてやっと準備が終わったので Web Apps for Container で動かしてみましょう
@@ -253,15 +261,52 @@ Portal から作成するとわかるのですが、App Service Plan は Premium
 
 ### 最初はサンプルコンテナで動作させると良い
 
-作成タイミングでは Managed IDを設定できない
+上記の作成作業の続きになりますが、初期設定するコンテナイメージはクイックスタートなどの、**未認証でアクセスできるレジストリから取得でき、かつ、正常稼働することが確実なもの** をお勧めします。
+下記画面キャプチャでいうと `mcr.microsoft.com/azure-app-service/windows/parkingpage:latest` を使っています。
 
-### Managed ID で ACR から Pull する
+![initial container web app](./images/initial-container.png)
 
-ACR Pull を Managed ID でやるにはコマンドとか必要
+Web Apps for Container は若干動きがもっさりしている（というかアプリ配置が遅い）ので、うまく動いてないのか、待ってればいいだけなのかがわからずやきもきします（私が短気なだけですが）。
+また上記画面キャプチャにもあるとおり、このタイミングで ACR から Pull する選択をした場合には管理キーでのアクセスが有効になっている必要があります。
+こちらに関しては後で紹介する予定の **Managed ID を利用した ACR からのコンテナイメージの Pull** をさせたい場合には、いったんここはスキップせざるを得ないわけです。
+
+また Web Apps for Contaier を作った後に例えば **VNET 統合してストレージに閉域アクセスする** といったような追加の構成設定をすると想定通りに動かなかったりすることがあると思いますが、
+そうした問題解決をする際に、少なくとも自分が開発したコンテナに起因していないだろうというのは精神衛生上にもよろしいかと思います。
+
+### Managed ID を使用して Azure Container Registry からイメージを Pull できるように構成する
+
+Web App の作成が終わったら以下の手順を実施していくことになります。
+
+1. 出来上がった Web App のマネージド ID を有効化する
+1. マネージド ID に対して ACR のアクセス許可（ AcrPull ロールの割り当てなど）を行う
+1. Web App が ACR にアクセスする際にマネージド ID を使用するように設定する
+1. Web App が ACR から Pull するイメージを指定する
+
+詳細な手順は[こちら](https://docs.microsoft.com/ja-jp/azure/app-service/configure-custom-container?pivots=container-windows#use-managed-identity-to-pull-image-from-azure-container-registry)
+になります。
+なおドキュメント上では全てコマンドラインで実施していますが、3つ目の手順 `Web App が ACR にアクセスする際にマネージド ID を使用するように設定する` 以外は Azure Potal からも実行可能です。
+
+![acrpull-using-managedid](./images/acrpull-using-managedid.png)
 
 ### コンテナ内のアプリから Managed ID で外部リソースにアクセスする
 
-普通に使えるけど、キャッシュが長いのがつらい。ユーザ割り当てMSIDの方が良いかも
+先ほど有効化したマネージド ID ですが、ACR からのコンテナイメージの Pull だけでなく、コンテナ内部で動作するアプリケーションから利用することもできます。
+つまり SQL Database や Blob サービスにも Azure AD 認証を使用してアクセスできるわけです。
+使い方自体は[非コンテナの Web App と同様です](https://docs.microsoft.com/ja-jp/azure/app-service/overview-managed-identity?tabs=dotnet)。
+.NET Framework であれば [Azure Identity client library for .NET](https://docs.microsoft.com/en-us/dotnet/api/overview/azure/identity-readme?view=azure-dotnet) を使用するのが簡単でしょう。
+なお通常の Web App と同様にコンテナにも下記の環境変数が設定されアプリからアクセス可能ですので、REST API として、あるいは他の言語のライブラリを使用しても同様に利用可能でしょう。
+
+|環境変数|値（実行環境ごとに異なる）|
+|---|---|
+|IDENTITY_ENDPOINT|http://100.64.100.2:41331/MSI/token/|
+|IDENTITY_HEADER|889E9580BFDC4BB7BA6F99E73A49E883|
+
+コンテナに限らないのですが、Managed ID はトークンキャッシュの有効期間が長く、ロール割り当て直後などは割と正常に動かないことが多くあります。
+おとなしく翌日まで待つか、ユーザー割り当てマネージド ID を別途作成して利用するなどをご検討ください。
+以下は公式ドキュメントから引用。
+```
+マネージド ID のバックエンド サービスは、リソース URI ごとのキャッシュを約 24 時間保持します。 特定のターゲット リソースのアクセス ポリシーを更新し、そのリソースのトークンをすぐに取得した場合、そのトークンの有効期限が切れるまで、期限切れのアクセス許可を持つキャッシュされたトークンを取得し続ける可能性があります。 現在、トークンの更新を強制する方法はありません。
+```
 
 ### ストレージマウント
 
