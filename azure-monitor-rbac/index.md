@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Azure 環境の監視に必要なロールとアクセス権
+title: Azure 環境の運用・監視に必要なロールとアクセス権の基本
 ---
 
 ## はじめに
@@ -8,7 +8,7 @@ title: Azure 環境の監視に必要なロールとアクセス権
 ある１つの組織内で Azure の活用が進んでいくと、多数のシステムが構築・運用されるようになり、各システムにおける多種多様な役割の担当者のアクセスの制御が重要になってきます。
 アクセス制御の方針は様々考えられますが、割とよく見られるのが単一のサブスクリプション内部をリソースグループで分割し、各担当者のアクセス可能な範囲を絞り込むアプローチです。
 
-各システムの担当者、特に運用に関わるユーザーは、当該システムに関わるリソースが参照できなければ話になりません。
+さて各システムの担当者、特に運用に関わるユーザーは、当該システムに関わるリソースが参照できなければ話になりません。
 このため一部のリソースグループに対して Azure RBAC の[閲覧者（reader）](https://docs.microsoft.com/ja-jp/azure/role-based-access-control/built-in-roles#reader)ロールを割り当てられることが多くなります。
 下の図の緑や黄色のユーザーのようなイメージです。
 
@@ -40,12 +40,13 @@ title: Azure 環境の監視に必要なロールとアクセス権
 
 ### 全てのログが見えるはず
 
-共用の Log Analytics ワークスペースには Application Insights のデータや各リソースの診断設定によってエクスポートされたリソースログやメトリックが集約されています。
+共用の Log Analytics ワークスペースには Application Insights が集めたテレメトリデータ、Log Analytics エージェントによって収集されたゲスト OS のテレメトリ、各リソースの診断設定によってエクスポートされたリソースログやメトリックが集約されています。
 このため管理者この全ログデータに対してクエリが可能ということになります。
 
 ![log-for-admin](./images/log-for-admin.png)
 
-
+当たり前といえば当たり前ですね。
+しかし逆に言えばこの万能さが仇になり（以下略）
 
 ## 各システムの運用担当者は何が見える？
 
@@ -54,6 +55,16 @@ title: Azure 環境の監視に必要なロールとアクセス権
 
 ![resources for contoso user](./images/resources-for-contoso-user.png)
 
+### Application Insights による監視は可能
+
+リソースグループに対して閲覧者ロールが割り当てられているということは、その配下にある Application Insights に対しても閲覧者ロールの割り当てが継承されます。
+よって Application Insights による分析やクエリは可能です。
+
+![appinsights-for-consoto-user](./images/appinsights-for-consoto-user.png)
+
+[Application Insights のリソース、ロール、アクセス制御](https://docs.microsoft.com/ja-jp/azure/azure-monitor/app/resources-roles-access-control)
+にある通り、閲覧者は`表示はできますが、何も変更することはできません。`
+が、まずはパフォーマンスデータなどが表示できればまずは大丈夫でしょうか。
 
 ### 必要なメトリックはちゃんと見える
 
@@ -80,6 +91,7 @@ title: Azure 環境の監視に必要なロールとアクセス権
 |*/read|機密データを除くあらゆる種類のリソースの読み取り|
 |Microsoft.OperationalInsights/workspaces/search/action|検索クエリを実行します。|
 |Microsoft.Support|サポート チケットの作成と更新|
+
 
 ### 実はログも見える
 
