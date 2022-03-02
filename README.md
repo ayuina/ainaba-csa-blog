@@ -2,6 +2,8 @@
 
 ### コンテンツ
 
+- [Azure 環境の運用・監視に必要なロールとアクセス権の基本](./azure-monitor-rbac)
+- [Azure Web Apps for WINDOWS Container (.NET Framework) 開発のメモ（仕掛中）](./web-apps-for-win-container)
 - [Azure の可用性ゾーンを利用した信頼性設計](./azure-zone-redundant)
 - [Power Apps キャンバスアプリに地図を表示する](./powerapp-with-map)
 - [調子の悪い Azure Web App の Web Worker を再起動する](./reboot-appservice-worker)
