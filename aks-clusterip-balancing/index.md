@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Kubernetes Cluster IP の負荷分散
+title: Kubernetes Cluster IP の負荷分散が割と偏る件
 ---
 
 ## はじめに
