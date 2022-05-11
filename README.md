@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure Web Apps を Auth0 を使用して OpenID Connect で認証する](./azure-webapp-auth0)
 - [Kubernetes Cluster IP の負荷分散が割と偏る件](./aks-clusterip-balancing)
 - [Azure API Management のログや監視にまつわるアレコレ](./monitoring-api-management)
 - [Azure 環境の運用・監視に必要なロールとアクセス権の基本](./azure-monitor-rbac)

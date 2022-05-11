@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Azure Web Apps を Auth0 で認証する()
+title: Azure Web Apps を Auth0 を使用して OpenID Connect で認証する
 ---
 
 ## はじめに
