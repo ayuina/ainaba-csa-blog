@@ -103,7 +103,6 @@ Web Apps が出来上がったら認証の設定画面で ID プロバイダー�
 ここではプロバイダー名を設定しつつ、先ほど Auth0 の画面で控えた値を入力します。
 |Web Apps 側の設定項目|Auth0 で生成された値|
 |---|---|
-|OpenID プロバイダー名|ここで適当な名前をつける|
 |メタデータ URL|https://{Domain}/.well-known/openid-configuration|
 |クライアント ID|Client ID|
 |クライアント シークレット|Client Secret|
