@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure Load Testing で実施するパフォーマンステスト](./azure-load-testing-trial/)
 - [Azure Web Apps を Auth0 を使用して OpenID Connect で認証する](./azure-webapp-auth0)
 - [Kubernetes Cluster IP の負荷分散が割と偏る件](./aks-clusterip-balancing)
 - [Azure API Management のログや監視にまつわるアレコレ](./monitoring-api-management)
