@@ -1,9 +1,9 @@
 ---
 layout: default
-title: Azure Function で作る Azure Monitor アクショングループの Secure Webhook
+title: Azure Function で作る Azure Monitor アクショングループの Secure な Webhook
 ---
 
-## はじめに
+# はじめに
 
 Azure Monitor の各種アラートルールが動作した場合の「通知先」はアクショングループで定義されます。
 ここで通知先に WebHook を利用する場合には、下記のように指定可能なパラメータも少なく、その URL に API を保護するための「キー」を含むことが多くなります。
@@ -41,7 +41,7 @@ GUI で設定できないだけの可能性もあるので、
 Azure AD 認証で保護された Azure Functions を作成して、アクショングループから呼び出せるか試してみました。
 
 
-## Azure AD 認証する Azure Functions App を作成する
+# Azure AD 認証する Azure Functions App を作成する
 
 まずは WebHook を受けるための HttpTrigger で起動する Function を作成します。
 ここは本題ではないので動作確認が出来る程度の下記の様なコードで作っておけば良いでしょう。
@@ -79,7 +79,7 @@ public static async Task<IActionResult> Run(HttpRequest req, ILogger log)
 ![require-assignment](./images/require-assignment.png)
 
 
-## アクショングループを表す Azure AD アプリケーション
+# アクショングループを表す Azure AD アプリケーション
 
 実はアクショングループは既に Azure AD にアプリ登録がされている「ファースト パーティ アプリケーション」ですので、自分でアプリ登録をする必要がありません。
 Application Id (Client Id) は `461e8683-5575-4561-ac7f-899cc907d62a` で固定になりますので、Azure AD の管理画面でこの ID を検索すると「エンタープライズアプリケーション」だけが見つかると思います。
@@ -88,7 +88,7 @@ Application Id (Client Id) は `461e8683-5575-4561-ac7f-899cc907d62a` で固定�
 ![aad-webhook](./images/aad-webhook.png)
 
 
-## WebHook 側のアプリケーションを構成する
+# WebHook 側のアプリケーションを構成する
 
 さてアクショングループはユーザー操作などが関与しない「非対話型のアプリケーション」です。
 このため [Web API をデーモンアプリから呼び出す](https://docs.microsoft.com/ja-jp/azure/active-directory/develop/scenario-protected-web-api-app-registration#if-your-web-api-is-called-by-a-service-or-daemon-app)
@@ -101,7 +101,7 @@ Application Id (Client Id) は `461e8683-5575-4561-ac7f-899cc907d62a` で固定�
 
 次に「アプリロール」画面を開いて `ActionGroupsSecureWebhook` という名前および値をもつアプリロールを作成します（上図右）。
 
-## アプリ ロールにアクショングループを割り当てる
+# アプリ ロールにアクショングループを割り当てる
 
 作成したアプリロールに対してアクショングループを表すエンタープライズアプリケーションを割り当てたいのですが、
 残念ながらこちらはスクリプトで実装する必要があります。
@@ -130,7 +130,7 @@ New-AzureADServiceAppRoleAssignment `
 ![assigned app role](./images/assinged-app-role.png)
 
 
-## アクショングループに Secure WebHook を登録してテストする
+# アクショングループに Secure WebHook を登録してテストする
 
 ここまでで準備完了ですので、アクショングループから「Webhook のセキュリティ保護」という名前のアクションの種類を登録します。
 この際に Function の API を呼び出すための URL を指定するのですが、認証キーが不要になる代わりに、Azure AD に登録したエンタープライズアプリケーションを指定しています。
