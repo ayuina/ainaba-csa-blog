@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure App Serivce で SAML Idp（Simple SAML php）を構築する](./simplesamlphp-on-appservice/)
 - [Azure Function で作る Azure Monitor アクショングループの Secure な Webhook](./azure-functions-secure-webhook/)
 - [Azure Container Apps のサービス間呼び出しの方法](./aca-service-invocation/)
 - [Windows Server 2022 の WSL2 に Docker をインストールして Linux コンテナを動かす](./linux-container-on-wsl2/)

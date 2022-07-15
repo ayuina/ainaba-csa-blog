@@ -9,6 +9,8 @@ title: Azure App Serivce で SAML Idp（Simple SAML php）を構築する
 PHP アプリケーションなので Azure 仮想マシン上に建ててもよかったのですが、SAML IdP として構築する以上、独自ドメインを割り当てた HTTPS を喋れる Web サーバーである必要があります。
 だったら Azure App Service 使えば PHP も入ってるり楽できるんじゃないか？と思いついてしまったら出来てしまったので、その方法をご紹介したいと思います。
 
+![architecture overview](./images/overview.png)
+
 # Simple SAML php の動作プラットフォームとなる Azure App Service を作成する
 
 Simple SAML php の[インストールマニュアル](https://simplesamlphp.org/docs/stable/simplesamlphp-install.html) を確認すると、
