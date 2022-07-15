@@ -171,9 +171,9 @@ echo hoge > dummy.log
 出来上がったコンテンツを Azure App Service にデプロイします。
 
 ```powershell
-$SUBSCRIPTION = 'db56efb3-bda6-4fd8-af0e-7841585fe607'
-$RG = 'saml-demo-rg'
-$WEBAPP = 'samldemo0715'
+$SUBSCRIPTION = 'guid-of-your-subscription'
+$RG = 'resoureGroupName'
+$WEBAPP = 'appserviceName'
 
 az login
 # パッケージ（tar.gz）を展開したディレクトリで実行する

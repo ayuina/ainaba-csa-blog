@@ -1,204 +1,53 @@
 ---
 layout: default
-title: Azure App Serivce で SAML Idp（Simple SAML php）を構築する
+title: Azure Active Directory External Identities の SAML IdP として Simple SAML php を登録する
 ---
 
-# はじめに
+# Web　API　を利用するユーザーを SAML　で認証したい
 
-諸般の事情から SAML IdP を構築する必要があり、色々調べた結果 [Simple SAML php](https://simplesamlphp.org/) を使用することにしました。
-PHP アプリケーションなので Azure 仮想マシン上に建ててもよかったのですが、SAML IdP として構築する以上、独自ドメインを割り当てた HTTPS を喋れる Web サーバーである必要があります。
-だったら Azure App Service 使えば PHP も入ってるり楽できるんじゃないか？と思いついてしまったら出来てしまったので、その方法をご紹介したいと思います。
+昨今の Web な世界では認証といえば Open ID Connect で、認可と言えば OAuth 2.0 が主流になっています。
+もちろん Azure の各種サービスも対応しており、
+[Azure Active Directory はこれらのプロトコルの認証・認可サーバーとして](https://docs.microsoft.com/ja-jp/azure/active-directory/develop/active-directory-v2-protocols)利用できますし、
+[Azure App Service の EasyAuth でユーザー認証](https://docs.microsoft.com/ja-jp/azure/app-service/overview-authentication-authorization)したり、
+[API Management の validate-jwt ポリシー等を駆使して認可](https://docs.microsoft.com/ja-jp/azure/api-management/policies/authorize-request-based-on-jwt-claims)することもできます。
 
-![architecture overview](./images/overview.png)
+ですが、従来エンタープライズの世界ではユーザー認証といえば SAML だったこともあり、現在でも往々にしてユーザー認証は SAML を利用したい需要が一定数あると思います。
+ところが前述の App Service は SAML プロトコルに対応していません。
+もちろんアプリケーションに SAML が喋れる認証モジュールやミドルウェアを組み込んでしまえば良いので、あえて App Service などのプラットフォーム機能に頼る必要はな訳ですが、API Management のようなサービスではそういった対応ができません。
+また、アプリによって認証プロトコルを使い分けたり、複数の Identity Provider を使い分けたりとなると、割とカオスな世界が待っている予感がします。
 
-# Simple SAML php の動作プラットフォームとなる Azure App Service を作成する
+そこで [Azure Active Directory External Identities](https://docs.microsoft.com/ja-jp/azure/active-directory/external-identities/external-identities-overview) の出番です。
+これを利用すると、アプリケーションからは Azure AD と Open ID Connect や OAuth 2.0 を使用した認証・認可だけ構成しておけばよく、Azure AD からはフェデレーションした外部 IdP に認証を任せることが可能です。
+前置きが長くなりましたが、こういう↓ことがしたいのです。　
 
-Simple SAML php の[インストールマニュアル](https://simplesamlphp.org/docs/stable/simplesamlphp-install.html) を確認すると、
-Nginx や Apache の手順を見ると、要は PHP で動く Web アプリの手前に HTTPS が喋れる Web サーバーがあれば良さそうです。
-ドメインやその TLS 証明書が必要になるわけですが、App Service ならちょっと構成すれば出来上がりそうですね。
-細かい手順は [Docs のこの辺り](https://docs.microsoft.com/ja-jp/azure/app-service/manage-custom-dns-buy-domain)を参照いただくとして、
-ここではポイントだけ紹介していきます。
+![app auth with saml](./images/overview.png)
 
-![create web app](./images/create-web-app.png)
+# [補足] Azure AD B2B コラボレーションについて
 
-- 後述のパスマッピングを使うため Windows 版の App Service を使用する
-- ランタイムスタックは PHP 7.4 を選択する（8.0 は Linux しかないため）
-- カスタムドメインと SSL の構成が可能な Basic 以上のプランを選択
+最も一般的な Azure AD 認証といえば、Azure AD の当該テナントに登録されたローカルユーザー、あるいは、そのテナントと接続されたオンプレミス Active Directory のユーザー認証です。
+つまりその Azure AD テナントは認可だけではなくユーザー認証を行う IdP としての役割を持っています。
 
-# 作成した App　Service　にカスタムドメインを割り当てて TLS　を有効にする
+ただ認可サーバーとなる Azure AD のテナントが、別の Azure AD テナントに所属するユーザーに対して認可を行うことは従来からも可能でした。
+これが [B2B コラボレーション](https://docs.microsoft.com/ja-jp/azure/active-directory/external-identities/what-is-b2b)
+と呼ばれる機能になります。
+これは認可サーバーとなるテナントに対して、外部のテナントに登録されているユーザーを「ゲストとして」登録することで、ローカルユーザーと同じように認可することができるわけです。
 
-検証用に使えるこだわりのドメインをお持ちの方は飛ばしてもいいですが、ここではドメインを新規に購入します。
-[App Serivce ドメイン](https://docs.microsoft.com/ja-jp/azure/app-service/manage-custom-dns-buy-domain)を購入してしまうのが手っ取り早いでしょう。
-作成が完了すると App Service ドメインだけでなく、そのドメインを管理するための [DNS ゾーン](https://docs.microsoft.com/ja-jp/azure/dns/dns-overview) も出来上がりますので、ドメイン周りの色々な設定を試すこともできます、便利。
+例えば、とあるテナント（contoso.com）に対して、外部の Azure AD テナント（fabrikam.com）のユーザー（bbbb@fabrikam.com）をゲストとして招待しておきます。
+この状況であるアプリケーションが Azure AD テナント（contoso.com）による認証を要求したとします。
+通常であれば当該テナントに所属するユーザー（aaaa@contoso.com）としてサインインするわけですが、
+ここで外部テナントのユーザー ID（bbbb@fabrikam.com）を入力すると、fabrikam.com 側の認証画面にさらに転送され、そちらでユーザー認証を行うことができます。
+外部テナント側で認証が完了すると元のテナントに戻され、contoso.com は fabrikam.com の認証結果を信頼し、その情報をもとに認可を行うことになります。
+この仕組みによって、fabrikam.com のユーザーは普段から使っている自身のユーザー ID （bbbb@fabrikam.com）を使用して contoso.com テナントで管理される API などの各種リソースへのアクセスができるわけです。
 
-![buy app service domain](./images/buy-appservice-domain.png)
+この外部テナントは従来 Azure AD である必要があった、つまり fabrikam.com が Azure AD テナントのドメインとして登録されている必要があったわけですが、これが SAML IdP のドメインだと Azure AD にはわかりません。
+当然ゲストとしての招待もできません。
+ところが External Identities を使用してこの SAML IdP　のドメインを登録しておくことで、その SAML IdP に所属するユーザーを招待、リソースアクセスさせてあげることが出来るわけです。
 
-App Service にカスタムドメインが割り当てられたら HTTPS で通信するための証明書が必要です。
-こだわりの証明機関がある場合はそちらで発行しても良いですが、ここでは 
-[App Service マネージド証明書](https://docs.microsoft.com/ja-jp/azure/app-service/configure-ssl-certificate?tabs=apex%2Cportal#create-a-free-managed-certificate)
-を作成して使うことにします、タダですし。
+つまり、App Service や API Management の標準機能を使用しつつ、SAML 認証を実現することが出来るわけです。
 
-![create app service managed certificate](./images/create-managed-cert.png)
+# まずは SAML IdP を構築する
 
-証明書が出来上がったら App Service に既に割り当ててあるカスタムドメインとバインドしてあげてください。
-
-![bind domain and tls certificate](./images/bind-tls-domain.png)
-
-バインドできたら Web ブラウザから作成したカスタムドメインにアクセスして、HTTPS でアクセスできてることを確認しておきます。
-まだアプリをデプロイしてないので初期ページが表示されるはずです。
-
-![test https connection with custom domain and certificate](./images/test-https-connection.png)
-
-# Simple SAML php の準備
-
-App Service が出来上がったら、デプロイするアプリケーションを準備していきます。
-詳細は [公式ドキュメント](https://simplesamlphp.org/docs/stable/simplesamlphp-install.html#configuring-php) を参照してください。
-ここではかいつまんで。
-
-## Simple SAML php のダウンロードと構成
-
-まずはパッケージをダウンロードして展開します。
-上記のサイトからは最新版が取れますが、[Github のリポジトリ](https://github.com/simplesamlphp/simplesamlphp) に行くと過去のバージョンを落としてくることも可能です。
-
-```powershell
-$NAME = 'simplesamlphp'
-$VERSION = '1.19.5'
-$DOWNLOAD_URL = "https://github.com/simplesamlphp/simplesamlphp/releases/download/v${VERSION}/simplesamlphp-${VERSION}.tar.gz"
-
-Invoke-WebRequest -Uri $SIMPLE_SAML_PHP_DOWNLOAD -OutFile "${NAME}.tar.gz" 
-mkdir ${NAME}
-tar -xzf "${NAME}.tar.gz" -C ${NAME} --strip-components 1
-```
-
-次に展開した中身に含まれる構成ファイル（`config/config.php`）を編集していきます。
-（以下は抜粋）
-
-```php
-$config = [
-
-   /* baseurlpath を App Service に割り当てたカスタムドメインの URL に合わせます */
-   'baseurlpath' => 'https://demo0715.biz/',
-
-   /* 管理者パスワードを設定します */
-   'auth.adminpassword' => 'your-password-or-password-hath',
-
-   /* Secret Salt を設定します */
-   'secretsalt' => 'your-own-secret-salt',
-
-   /* Time Zone を指定します */
-   'timezone' => 'Asia/Tokyo',
-]
-```
-
-## Simple SAML php を Identity　Provider　として構成する
-
-次に Identity Provider としての設定をしていきます。
-詳細は[公式ドキュメント](https://simplesamlphp.org/docs/stable/simplesamlphp-idp.html#configuring-the-idp)を参照してください。
-ここではかいつまんで。
-
-まずは引き続き構成ファイル（config/config.php）を編集していきます。
-
-```php
-$config = [
-   /* Identity Provider としての機能を有効にします */
-   'enable.saml20-idp' => true,
-
-   /* exampleauth モジュールを有効にします */
-   'module.enable' => [
-      'exampleauth' => true,
-      'core' => true,
-      'saml' => true
-   ],
-]
-```
-
-次に認証ソースの構成ファイル（`config/authsouces.php`）を修正していきます。
-（以下は抜粋）
-
-```php
-$config = [
-   /* example-userpass を有効化（既定ではコメントアウトされていたものを解除しただけ） */
-   'example-userpass' => [
-
-      'student:studentpass' => [
-         'uid' => ['test'],
-         'eduPersonAffiliation' => ['member', 'student'],
-      ],
-      'employee:employeepass' => [
-         'uid' => ['employee'],
-         'eduPersonAffiliation' => ['member', 'employee'],
-      ],
-   ],
-]
-```
-
-SAML アサーションに署名するための証明書を作成して `cert` ディレクトリに保存しておきます。
-
-```bash
-openssl req -newkey rsa:3072 -new -x509 -days 3652 -nodes -out cert/example.org.crt -keyout cert/example.org.pem
-```
-
-生成した証明書ファイルの名前を `metadata/saml20-idp-hosted.php` に記載、NameFormat属性も指定します。
-
-```php
-$metadata['__DYNAMIC:1__'] = [
-   'host' => '__DEFAULT__',
-
-   /* cert ディレクトリに保存したファイル名を指定 */
-   'privatekey' => 'example.org.pem',
-   'certificate' => 'example.org.crt',
-
-   'auth' => 'example-userpass',
-
-   'authproc' => [
-      100 => ['class' => 'core:AttributeMap', 'name2oid'],
-   ],
-
-];
-```
-
-## ログ出力ディレクトリ
-
-Simple SAML php が出力するログファイルは `log` ディレクトリに出力されるのですが、既定では空の状態です。
-この後の手順で App Service にデプロイすると空のディレクトリが消えてしまうため、ダミーファイルを生成しておきます。
-
-```powershell
-echo hoge > dummy.log
-```
-
-# Simple SAML php を App Service　にデプロイする
-
-出来上がったコンテンツを Azure App Service にデプロイします。
-
-```powershell
-$SUBSCRIPTION = 'db56efb3-bda6-4fd8-af0e-7841585fe607'
-$RG = 'saml-demo-rg'
-$WEBAPP = 'samldemo0715'
-
-az login
-# パッケージ（tar.gz）を展開したディレクトリで実行する
-az webapp up --subscription $SUBSCRIPTION -n $WEBAPP -g $RG --os-type windows --runtime "PHP:7.4"
-```
-
-`az webapp up` を実行したディレクトリのコンテンツはそのまま、App Service の `C:\home\site\wwwroot` にデプロイされるのですが
-PHP で作られたアプリケーションは `www` ディレクトリに格納されています。
-Kudu で確認すると以下のようになっています。
-
-![](./images/deployed-webapp.png)
-
-`index.php` などが含まれる `www` ディレクトリが App Service のサイトルート `/` でホストされるように、物理パスへのマッピングを既定の `\site\wwwroot` から `\site\wwwroot\www` に変更します。
-
-![iis site path mapping](./images/path-mapping.png)
-
-
-# SAML 認証の動作確認
-
-アプリのデプロイが完了したので動作確認です。
-割り当てたカスタムドメイン名を使用してブラウザにアクセスすると、Simple SAML php の画面が表示されます。
-`config/config.php` で設定した管理者ユーザーとして、あるいは `config/authsources.php` で設定したユーザーとしてサインインできることを確認してください。
-
-![](./images/test-simplesamlphp.png)
-
-これで SAML 認証をする Identity Provider としての準備が完了しました。
-アプリケーション（Service Provider）が SAML 認証するには、さらに追加の構成が必要になってきますが、それは別記事でご紹介したいと思います。
+こちらに関しては [Simple SAML php による IdP の構築方法](../simplesamlphp-on-appservice/) を別途記事にしておりますので、そちらをご参照ください。
+以降ではこの SAML IdP を使用します。
+もちろん SAML の実装によって手順は大きく異なってくると思いますが、全ての SAML 実装を網羅していくのは現実的ではないので、サンプルとしてご参照いただければと思います。
 
