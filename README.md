@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [SLA は Availability（可用性）ではなく Agreement （合意）](./reliability-of-azure-based-services/)
 - [Azure App Serivce で SAML Idp（Simple SAML php）を構築する](./simplesamlphp-on-appservice/)
 - [Azure Function で作る Azure Monitor アクショングループの Secure な Webhook](./azure-functions-secure-webhook/)
 - [Azure Container Apps のサービス間呼び出しの方法](./aca-service-invocation/)
