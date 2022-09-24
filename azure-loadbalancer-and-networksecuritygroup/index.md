@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Azure Load Balancer による Virtual Machine の負荷分散と Network Security Group
+title: Azure Load Balancer による Virtual Machine の負荷分散と Network Security Group の関係
 ---
 
 # はじめに
