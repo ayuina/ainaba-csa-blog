@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Kudu REST API を使用した App Service へのアプリのデプロイ
+title: Kudu REST API の Basic 認証を使用した App Service へのアプリのデプロイ
 ---
 
 # はじめに
