@@ -16,10 +16,11 @@ title: Kudu REST API を使用した App Service へのアプリのデプロイ
 Web Apps とか Websites という名前で呼ばれたりもします。
 最初期からあり歴史も長い故に機能追加と拡張を繰り返してきました。
 が、基本的なアーキテクチャも安定しており、今現在でもおススメの PaaS です。
+特に仮想ネットワークを使用した閉域化のオプションが充実して以降、企業内 IT での利用もかなり増えてきた印象です。
 
-基本的な利用方法としては Azure 上に App Service を作成し、そこにユーザーが開発したアプリケーションコンテンツををデプロイするだけです。
+基本的な利用方法としては Azure 上に App Service を作成し、そこにユーザーが開発したアプリケーションコンテンツをデプロイするだけです。
 App Service を作成した時点で Web サーバーやアプリケーションサーバーはセットアップされていますので、
-あとは特定のディレクトリ、Windows 版であれば C:¥home¥site¥wwwroot、Linux 版であれば /home/site/wwwroot 配下にファイルを置いてあげればおいわけです。
+あとは特定のディレクトリ、Windows 版であれば C:¥home¥site¥wwwroot、Linux 版であれば /home/site/wwwroot 配下にファイルを置いてあげれば良いわけです。
 しかし仮想マシンとは異なり、直接リモートデスクトップ接続や SSH 接続することは出来ず、コンテンツを配置する方法が定められています。
 その根幹を担っているのが 
 [Kudu](https://learn.microsoft.com/ja-jp/azure/app-service/resources-kudu) 
@@ -88,6 +89,8 @@ Azure AD 等の認証サービスにアクセスする必要もありません�
 つまり 技術的には App Service まで HTTPS を飛ばす通信経路だけが確保できていれば、アプリのデプロイが可能ということです。
 これであれば OS 標準搭載のブラウザから、あるいは Windows PowerShell の Invoke-RestMethod 、Windows コマンドプロンプトや Linux の Shell から利用できる curl で十分です。
 おそらくこれが最後の手段でしょう。
+
+![](./images/deploy-app.png)
 
 ## 配置用のアプリケーションコンテンツの準備
 
