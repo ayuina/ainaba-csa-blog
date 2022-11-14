@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure B シリーズ仮想マシンのバーストクレジットが枯渇した際の挙動について](./vm-lack-of-burst-credits)
 - [Kudu REST API の Basic 認証を使用した App Service へのアプリのデプロイ](./invoke-kudu-rest-api)
 - [Azure Load Balancer による Virtual Machine の負荷分散と Network Security Group の関係](./azure-loadbalancer-and-networksecuritygroup)
 - [SLA は Availability（可用性）ではなく Agreement （合意）](./reliability-of-azure-based-services/)
