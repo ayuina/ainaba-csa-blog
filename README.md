@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Git Merge の挙動を確認してみた](./git-merge-study)
 - [Outlook 会議の日程調整](./outlook-findtime)
 - [Azure Functions から出力される Application Insights テレメトリのサンプリングとログの欠落](./azure-functions-logging)
 - [Azure Functions で Blob にアップロードされた ZIP ファイルを解凍する](./extract-zip-function)
