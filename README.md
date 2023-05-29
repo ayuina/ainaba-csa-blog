@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Power Apps キャンバスアプリから画像をバイナリでアップロードするための ASP.NET Core Web API](./powerapps-image-upload/)
 - [Git Merge の挙動を確認してみた](./git-merge-study)
 - [Outlook 会議の日程調整](./outlook-findtime)
 - [Azure Functions から出力される Application Insights テレメトリのサンプリングとログの欠落](./azure-functions-logging)
