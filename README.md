@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure OpenAI Service を API Management 経由で呼び出す構成を自動化する](https://github.com/ayuina/apim-aoai-sample)
 - [Azure Functions を使用して Server-Sent Events を実装してみた話](./serversentevents-from-function)
 - [Power Apps キャンバスアプリから画像をバイナリでアップロードするための ASP.NET Core Web API](./powerapps-image-upload/)
 - [Git Merge の挙動を確認してみた](./git-merge-study)
