@@ -112,7 +112,7 @@ Azure Portal では設定できないですし、Azure CLI/PowerShell にもコ�
 なお ARM による設定変更ではなく[ファイルベースの設定](https://learn.microsoft.com/ja-jp/azure/app-service/configure-authentication-file-based) も可能なのですが、このファイルはアプリのコンテンツと一緒に `%HOME%\site\wwwroot` に配置する必要があります。
 つまりソースコード管理や CI/CD に含める必要が出てきますし、なによりスロット単位で設定を変えることが出来なくなるので、個人的にはあまりお勧めしません。
 
-## アプリケーションコード内でユーザーの属性情報を元に判定ロジックを実装する
+## アプリケーションコード内でユーザーの属性情報を元に判定ロジックを実装する（サーバー側）
 
 個人的にはこの方式が本命だと思っています。
 上記の２つの方法は「このアプリは誰が使って OK/NG」という割とざっくりしたアクセス制御です。
@@ -245,6 +245,48 @@ app.MapGet("/principal", (HttpRequest request, HttpResponse response) =>
 
 - [ID token claims reference](https://learn.microsoft.com/ja-jp/entra/identity-platform/id-token-claims-reference)
 - [Configure optional claims](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims)
+
+## アプリケーションコード内でユーザーの属性情報を元に判定ロジックを実装する（クライアント側）
+
+ここまでの内容は App Service や Entra ID といった「安全に管理可能なクラウドサービス側」での制御でした。
+ただアクセス制御の実装方式としてはクライアント側での実装も必要になることが多いでしょう。
+良くあるのは「ユーザーの属性情報に応じてメニューの表示項目を変える」というやつです。
+クライアント側で実装する場合にはアクセス制御としてのセキュリティ強度は落ちますが、簡易的なハッキング対策にはなりますし、ユーザー利便性という意味での価値もあります。
+
+カスタム DB 方式の場合には JavaScript からアクセスしてユーザー情報を取得る API の実装が必要になりますが、Entra ID 方式であればトークンストアが利用できます。
+[上記でも紹介したドキュメント](https://learn.microsoft.com/ja-jp/azure/app-service/configure-authentication-oauth-tokens) にも記載がありますが、ブラウザ側から App Service の URL の `/.auth/me` エンドポイントにアクセスすると現在認証しているユーザーのアクセストークン等が取得できるのですが、同時にクレーム情報も取得可能です。
+
+```json
+[
+  {
+    "access_token": "eyJ0eXAiOiJKV1Q...",
+    "expires_on": "2023-10-25T09:54:06.7404375Z",
+    "id_token": "eyJ0eXAiOiJKV1QiLCJhbGciO...",
+    "provider_name": "aad",
+    "user_claims": [
+      {
+        "typ": "preferred_username",
+        "val": "username@example.com"
+      },
+      {
+        "typ": "name",
+        "val": "Firstname Lastname"
+      },
+      {
+        "typ": "groups",
+        "val": "d3d65fb0-82ef-4995-9a5c-5eb0be4c33c7"
+      }
+      {
+        "typ": "roles",
+        "val": "writer-role"
+      }
+    ],
+    "user_id": "username@example.com"
+  }
+]
+```
+この JSON をパースして `user_claims` を取り出し、クライアントサイドのアクセス制御の実装に活用するとよいでしょう。
+ただし JavaScript での実装はデータや処理の改ざんが可能ですので、サーバーサイドでのアクセス制御は必ず実施するようにしてください。
 
 # まとめ
 
