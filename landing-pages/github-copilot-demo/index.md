@@ -1,16 +1,18 @@
 ---
 layout: default
-title: Azure OpenAI Service を API Management 経由で呼び出す構成を自動化する
+title: GitHub Copilot / Copilot Chat のデモ動画
 ---
 
 # 概要
 
-Azure OpenAI Service の前段に API Management を配置することで様々な価値を追加することが可能です。
+GitHub Copilot や Copilot Chat を使用した開発作業を理解するためのデモ動画です。
 
-- Azure OpenAI Service 単体では出力できないログを出力する
-- Azure OpenAI Service へのアクセス EntraID 認証を利用してセキュリティを向上
-- クライアントアプリ単位で API キーを払い出しアクセス制御やスロットリングを行う
-- 複数の OpenAI Service への負荷分散を行ってクォータ制限を回避する
-- etc...
+Markdown（日本語）、HTML、JavaScript、CSS、PowerShell などのコンテンツを Copilot に生成してもらいながら、最終的に Azure App Service に公開するところまで実施しています。
 
-このコンテンツは繰り返しデプロイ可能な Bicep テンプレートなどのサンプルコードとともに [こちらのレポジトリで公開しています。](https://github.com/ayuina/apim-aoai-sample)
+動画内ではちょっとわかりにくいですが、グレーの文字が表示された後に一気に白文字が入力される箇所が、Copilot が生成した候補を採用している（Tabキー）部分になります。
+逐一手入力している部分ももちろんありますが、Copilot による自動生成の精度やそれを活用した場合の入力速度の差異を見ていただければと思います。
+
+もちろん Copilot が意図しない候補を生成する場合もありますので、そこは適宜修正していっています。
+Copilot はあくまでも **副操縦士** なので、メインパイロットの判断で適切な出力の選択・編集・方向づけが必要であることがご理解いただけると思います。
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/sX9rFwcbCMI?si=CP6jBSgXiVCZ0tE-" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
