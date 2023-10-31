@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [GitHub Copilot / Copilot Chat のデモ動画](./landing-pages/github-copilot-demo/)
 - [App Service における Microsoft Entra ID 認証ユーザーに対するアクセス制御](./appsvc-easyauth-z/)
 - [GitHub Actions から Azure App Service にアプリをデプロイするときのネットワーク制御など](./ghaction-appsvc-network/)
 - [Azure OpenAI Service を API Management 経由で呼び出す構成を自動化する](./landing-pages/apim-aoai-sample/)
