@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [管理者視点で見たい Microsoft Dev Box 監査系のログ](./devbox-logging)
 - [GitHub Copilot / Copilot Chat のデモ動画](./landing-pages/github-copilot-demo/)
 - [App Service における Microsoft Entra ID 認証ユーザーに対するアクセス制御](./appsvc-easyauth-z/)
 - [GitHub Actions から Azure App Service にアプリをデプロイするときのネットワーク制御など](./ghaction-appsvc-network/)
