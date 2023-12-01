@@ -7,6 +7,14 @@ title: GitHub Copilot / Copilot Chat のデモ動画
 
 GitHub Copilot や Copilot Chat を使用した開発作業を理解するためのデモ動画です。
 
+## サンプル XML データとそれを処理する VBScript の生成
+
+トラブルシュート時に VBScript を使用した再現コードを作成することになったのですが、慣れない言語なので Copilot に助けてもらいました。
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Y4qwX6xhAVE?si=Kzc_061sWA0fh_lL" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
+## ドキュメントを書きながらアプリを実装して Azure にデプロイ
+
 Markdown（日本語）、HTML、JavaScript、CSS、PowerShell などのコンテンツを Copilot に生成してもらいながら、最終的に Azure App Service に公開するところまで実施しています。
 
 動画内ではちょっとわかりにくいですが、グレーの文字が表示された後に一気に白文字が入力される箇所が、Copilot が生成した候補を採用している（Tabキー）部分になります。
