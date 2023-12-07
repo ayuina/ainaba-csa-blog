@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [App Service (Web アプリ) から App Service（Web API） を呼び出す時の EasyAuth を使用した Authorization Code flow](./appsvc-easyauth-to-easyauth)
 - [管理者視点で見たい Microsoft Dev Box 監査系のログ](./devbox-logging)
 - [GitHub Copilot / Copilot Chat のデモ動画](./landing-pages/github-copilot-demo/)
 - [App Service における Microsoft Entra ID 認証ユーザーに対するアクセス制御](./appsvc-easyauth-z/)
