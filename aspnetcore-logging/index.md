@@ -1,6 +1,6 @@
 ---
 layout: default
-title: ASP.NET Core アプリケーションのログ出力
+title: ASP.NET Core アプリケーションと Azure App Service のログ出力と確認
 ---
 
 # はじめに
@@ -24,6 +24,9 @@ title: ASP.NET Core アプリケーションのログ出力
 - [ASP.NET Core での開発におけるアプリ シークレットの安全な保存](https://learn.microsoft.com/ja-jp/aspnet/core/security/app-secrets?view=aspnetcore-8.0&tabs=windows)
 - [ASP.NET Core で IHttpClientFactory を使用して HTTP 要求を行う](https://learn.microsoft.com/ja-jp/aspnet/core/fundamentals/http-requests?view=aspnetcore-8.0)
 - [Azure SDK for .NET を使用したログ記録](https://learn.microsoft.com/ja-jp/dotnet/azure/sdk/logging)
+- [EF Core での Microsoft.Extensions.Logging の使用](https://learn.microsoft.com/ja-jp/ef/core/logging-events-diagnostics/extensions-logging?tabs=v3)
+- [Azure App Service の監視の概要](https://learn.microsoft.com/ja-jp/azure/app-service/overview-monitoring)
+- [Azure App Service に ASP.NET Core アプリを展開する](https://learn.microsoft.com/ja-jp/aspnet/core/host-and-deploy/azure-apps/?view=aspnetcore-8.0&tabs=visual-studio#application-configuration)
 
 # まずはデフォルトで確認できるログについて
 
@@ -396,7 +399,7 @@ app.UseW3cLogging();
 この W3CLogger はこれまで暗黙的に使っていた `Microsoft.Extensions.Logging` の仕組みとは異なります。
 つまり Console プロバイダーに出力されることもなく、カテゴリーによるフィルターをかける事も出来ず、複数のモジュールから出力されるログとマージされて出ることもありません。
 
-## HttpClient のログ
+## アプリから発信する HttpClient のログ
 
 またまた HTTP ですが、今度はアプリケーションから外部の Web API を呼び出すアウトバウンド側の通信ログになります。
 通常この手のケースでは [`System.Net.Http.HttpClient`](https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpclient?view=net-8.0) を使うと思います。
@@ -579,17 +582,33 @@ info: aspnet_logging_sample.Pages.IndexModel[3]
 
 ## データベースアクセスのログ（EntityFramework Core)
 
-# 最終的に怪しいのはユーザーコード
+よく使われるクラスライブラリの第３弾は Entity Framework Core です。
+データベース アクセスするアプリは多いですからね。
 
-## ユーザーコードのインストルメンテーション
+ここまで読んでいただいた方にはオチが見えてるでしょうが、
+お作法としては Entity Framework で使用するクライアントである `DbContext` 派生クラスを 
+[AddDbContext](https://learn.microsoft.com/ja-jp/dotnet/api/microsoft.extensions.dependencyinjection.entityframeworkservicecollectionextensions.adddbcontext?view=efcore-8.0)
+で DI サービスに登録し、
+自分で `new` せずに利用することです。
 
-ここまでで怪しい箇所が見つからなければ疑うべきは開発したコードの中身ですが、当然ながら明示的にログを出力するコードを記述しない限り勝手にログは吐いてくれません。
+実際のサンプルコードやログ出力は割愛します。
+~~面倒になったとも言う。~~
+
+# 最終的に怪しいのは自分で開発したコード
+
+さてフレームワークやらライブラリやらのログは（お作法にさえ則っていれば）出力できるので、
+それで大まかな処理の流れはつかめると思います。
+そして最終的に疑うべきは自分で書いたコードでしょう。
+
+## ユーザーコードのログ出力
+
+当然ながら明示的にログを出力するコードを記述しない限り勝手にログは吐いてくれません。
 というわけでここからはログ出力するための方法ですが、前述のフレームワークと同じ仕組みに則ることをおすすめします。
 あっちこっちに出てるログを突き合わせて解析するなんて茨の道を歩かないで済むに越したことはありません。
 
-さて Razor Pages の場合は生成した `cshtml.cs` のコンストラクターで `ILogger<T>` インタフェースなオブジェクトが Injection されてることがわかります。
-他のフレームワークやテンプレでは Injection されてないこともありますので、その場合は追加してあげてください。
+Razor Pages の場合は生成した `cshtml.cs` のコンストラクターで `ILogger<T>` インタフェースなオブジェクトが Injection されてることがわかりますので迷うことはありません。
 あとはログを出したい場所で `ILogger` のメソッドを呼び出して、必要な情報を出力してください。
+他のフレームワークやテンプレでは Injection されてないこともありますので、その場合は追加してあげてください。
 
 ```csharp
 public class IndexModel : PageModel {
@@ -608,12 +627,10 @@ public class IndexModel : PageModel {
         _logger.LogDebug(555,"Index.cshtml.cs の OnGet が呼ばれました（Debug）");
         _logger.LogTrace(444,"Index.cshtml.cs の OnGet が呼ばれました（Trace）");
     }
-
 }
 ```
 
-そうすると ASP.NET が自動的に出してるログに混じって、以下のようにログが出力されると思います。
-
+そうすると ASP.NET Core が自動的に出してるログに混じって、以下のようにログが出力されると思います。
 
 ```log
 crit: aspnet_logging_sample.Pages.IndexModel[999]
@@ -641,21 +658,204 @@ info: aspnet_logging_sample.Pages.IndexModel[666]
 }
 ```
 
-さてここで重要なのはカテゴリー（＝名前空間とクラス名）によるフィルターですね。
-カテゴリ名は DI フレームワークに挿入してもらう `ILogger<T>` の Generic 型引数 `T` で決ま離ますので、汎用の `ILogger` を使わないようにしましょう。
-他のページのコードをコピペして「型引数を書き換え忘れる」とかもってのほかです。
+## 自作ライブラリのログ出力
+
+上記のユーザーコードでログ出力していた IndexModel は Razor Pages なので、そもそも Dependency Injection によって生成されたインスタンスでした。
+これは Program.cs のテンプレートで最初から以下のコード（抜粋）が記述されていたから成り立っているわけです。
+
+```csharp
+// Razor Page をサービスとして組み込んで
+builder.Services.AddRazorPages();
+// アプリをビルドし
+var app = builder.Build();
+// URL で指定されるルートに対して各ページを割り当てて処理をする
+app.MapRazorPages();
+```
+
+HTTP リクエストが ASP.NET Core フレームワークに到着すると、各ページのインスタンスが自動生成されて Dependency Injection されていたわけです。
+DI によって生成されるクラスにも DI されるので、コンストラクタに `ILogger<T>` の引数を追加しておくだけでよかったんですね。
+ここまで例に挙げてきた `HttpClient` や `BlobServiceClient` などと同様の仕組みなわけです。
+
+と言うわけで、Razor Page じゃない自作クラスに関しても、DI の仕組みに乗っかってやれば `ILogger<T>` がもらえるので、`Microsoft.Extensions.Logging` の仕組みでログ出力できるわけですね。
+
+例えば以下のような `MyBizLogic` クラスを作って、`IndexModel` に直接書いていたロジックを切り出します。
+
+```csharp
+public class MyBizLogic
+{
+    private readonly ILogger<MyBizLogic> _logger;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IAzureClientFactory<BlobServiceClient> _blobSvcClientFactory;
+
+    // コンストラクタで挿入して欲しいオブジェクトを引数に加えて、
+    public MyBizLogic(ILogger<MyBizLogic> logger, 
+        IHttpClientFactory hcfactory, 
+        IAzureClientFactory<BlobServiceClient> bfactory)
+    {
+        _logger = logger;
+        _httpClientFactory = hcfactory;
+        _blobSvcClientFactory = bfactory;
+    }
+
+    public async Task DoSomething()
+    {
+        // Web API を呼び出したり
+        _logger.LogInformation(1, "Calling httpbin");
+        var request = new HttpRequestMessage( HttpMethod.Get, "https://httpbin.org/image/png" )
+        {
+            Headers = {
+                { "Accept", "image/png" }
+            }
+        };
+        var client = _httpClientFactory.CreateClient();
+        var response = await client.SendAsync(request);
+        _logger.LogInformation(2, "Status Code = {status}", response.StatusCode);
+
+        // Blob Service の呼び出したり
+        var bsClient = _blobSvcClientFactory.CreateClient("myStorage");
+        var container = bsClient.GetBlobContainerClient("images");
+        await foreach (var blob in container.GetBlobsAsync())
+        {
+            _logger.LogInformation(3, "{name} is {size} bytes", blob.Name, blob.Properties.ContentLength);
+        }    }
+}
+```
+
+これを Razor Pages から `new` したら元も子もないので、
+
+```csharp
+// Program.cs で自作クラスもサービスとして DI コンテナに登録しておいて
+builder.Services.AddTransient<MyBizLogic>();
+```
+
+Razor Page ではインスタンスを注入してもらえば良いわけです。
+```csharp
+    private readonly MyBizLogic _bizLogic;
+    // 自作クラスをコンストラクタ引数で受けて
+    public IndexModel(ILogger<IndexModel> logger , MyBizLogic bizLogic)
+    {
+        _logger = logger;
+        _bizLogic = bizLogic;
+    }
+    // new しないで呼び出します。
+    public async Task OnGet()
+    {
+         _logger.LogInformation(666, "Index.cshtml.cs の OnGet が呼ばれました（Info）");
+         await _bizLogic.DoSomething();    
+    }
+```
+
+`ILogger` なインスタンスを上位層から引き渡してあげなくても、同じようにログが出るわけですね。
+
+以下は一部だけに抜粋していますが、ASP.NET Core も 自作の Razor Page やビジネスロジッククラスも、
+HttpClient による外部 API 呼び出しも、Azure SDK を使用した Blob サービスの呼び出しも、
+一元的にログに出力できています。
+
+```csharp
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint '/Index'
+info: aspnet_logging_sample.Pages.IndexModel[666]
+      Index.cshtml.cs の OnGet が呼ばれました（Info）
+info: aspnet_logging_sample.MyBizLogic[1]
+      Calling httpbin
+info: System.Net.Http.HttpClient.Default.LogicalHandler[100]
+      Start processing HTTP request GET https://httpbin.org/image/png
+info: System.Net.Http.HttpClient.Default.LogicalHandler[101]
+      End processing HTTP request after 1252.8823ms - 200
+info: aspnet_logging_sample.MyBizLogic[2]
+      Status Code = OK
+info: Azure.Core[1]
+      Request [64184627-a71c-4c41-8402-7ba007fc36f1] GET https://appmigaistrage.blob.core.windows.net/images?restype=container&comp=list
+info: Azure.Core[5]
+      Response [64184627-a71c-4c41-8402-7ba007fc36f1] 200 OK (01.6s)
+```
+
+## とにかくカテゴリとフィルターが重要
+
+改めて重要なのはカテゴリー（＝名前空間とクラス名）と、それによるフィルターですね。
+自作のコードの場合、カテゴリ名は DI フレームワークに挿入してもらう `ILogger<T>` の Generic 型引数 `T` で決まりますので、汎用の `ILogger` を使わないようにしましょう。
+この型引数（ここでは `IndexModel`）があるからこそ、どのコードが出力したログかが分かるわけですし、それによって適切なフィルターもかけられるわけです。
+
+つまり他のページのコードをコピペして「型引数を書き換え忘れる」とかもってのほかです。
 カテゴリが変わってしまうので、どこから出てきたログなのかわからないでログとしての信頼性を失いますし、
 フィルター変えても表示されなかったりするのでトラブルシュートの効率が極端に下がります。
 
 皆さんもお気をつけください（反省）
 
-# ライブラリのログ
+# 実行環境でのログ収集
 
-## HttpClient
-## Blob
-## OpenAI
+さて出すべきものは出したので、運用環境でどうやって取得するかです。
+よく考えたらコレが本題です。
 
-# Appserviceでの出方
+## Azure App Service でのログの確認
 
-# ログ出力設定
-# Settings による調整
+Azure App Service を作成して作成したアプリケーションをデプロイしてみます。
+これまでは開発環境だったので `dotnet run` したコンソールや Visual Studio (Code) のデバッグウインドウでログを確認できていたのですが、
+App Service ではどうしましょう？
+
+
+### Application Insights
+
+まずおすすめは Application Insights です。
+App Service を作成時に一緒に作成しているケースも多いでしょうし、後から有効化するのも簡単です。
+コンソールで確認してた時と同じログが出てますが、クエリで収集したり絞り込んだりできるのが良いですね。
+
+![Application Insights Logging](./images/application-insights.png)
+
+### App Service アプリケーション ログ
+
+App Service の設定で「アプリケーションのログ記録」を有効にすることでファイルベースでログを確認することも可能です。
+
+![enable app service applog](./images/enable-appservice-applog.png)
+
+と、思いきや、これを使用するには ASP.NET Core でも一定の構成が必要です。
+まず必要なパッケージを組み込みます。
+```bash
+dotnet add package Microsoft.AspNetCore.AzureAppServices.HostingStartup
+dotnet add package Microsoft.AspNetCore.AzureAppServicesIntegration  
+dotnet add package Microsoft.Extensions.Logging.AzureAppServices  
+```
+サービスとして組み込みます。
+```csharp
+builder.Logging.AddAzureWebAppDiagnostics();
+builder.Services.Configure<AzureFileLoggerOptions>(options =>
+{
+    options.FileName = "azure-diagnostics-";
+    options.FileSizeLimit = 50 * 1024;
+    options.RetainedFileCountLimit = 5;
+});
+builder.Services.Configure<AzureBlobLoggerOptions>(options =>
+{
+    options.BlobName = "log.txt";
+});
+```
+
+こうすると App Service の `$Env:Home\LogFiles\Application` 、
+あるいは指定した Blob コンテナにログファイルが出力されます。
+また ファイルシステムのアプリケーションログを有効にした場合には、ログストリームの画面でも確認できるようになります。
+
+![app log file and stream](./images/appservice-applog.png)
+
+ただログストリームは割と遅延というかタイムラグがあるのがちょっとストレスですね。
+
+### 環境変数によるログ設定の変更
+
+ログの確認方法としては上記の通りなのですが、App Service には本番環境としてデプロイされているので、
+appsettings.Development.json や sercrets.json で設定したフィルター条件は失われ、
+appsettings.json に記載した値のみが有効になっています。
+
+ただ本番環境にデプロイ済みのファイルである appsettings.json を、しかも運用中に書き換えるのはよろしくないケースも多いでしょう。
+こういう場合は設定値を環境変数で上書きすることが可能です。
+環境変数は json ファイルのようなツリー構造を持ちませんが、下記のように `:` で区切ってパラメータを指定することでフィルターを調整できます。
+
+![Configure log settings with environment variable](./images/logsettings-envvar.png)
+
+
+# まとめ
+
+渋いテーマの割には割と長大な文章になってしましました。
+端的にいえば ASP.NET Core のお作法？に則って、つまり Dependency Injections と ILogger<T> を使用したプログラミングをしていれば、それほど苦労なくログを出力し確認することが出来るかと思います。
+出力しているはずのログが確認できないのは不安でいっぱいです。
+この記事が皆様のトラブルシューティングの一助になれば幸いです。
+
+
