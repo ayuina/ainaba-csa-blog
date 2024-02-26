@@ -12,7 +12,7 @@ title: ASP.NET Core アプリケーションと Azure App Service のログ出�
 ただ昨今のアプリケーション フレームワークは割と高機能になってしまっているせいか、結局のところ自分のアプリケーションではどうすればログが出せるのかわかりにくかったりします。
 
 この手の相談は結構な頻度でいただくのでちょっとまとめてみようかなと思ったんですが、実行環境やフレームワークによってお作法も様々ですので、網羅するのはちょっと辛い。
-というわけで、ASP.NET Core で作ったアプリを Azure App Service にデプロイする前提でまとめてみようと思いました。
+というわけで、ASP.NET Core で作ったアプリを Azure App Service や Azure Containr Apps にデプロイする前提でまとめてみようと思いました。
 
 ![logging overview](./images/overview.png)
 
@@ -20,6 +20,7 @@ title: ASP.NET Core アプリケーションと Azure App Service のログ出�
 
 参考にするドキュメントが多岐に渡るので、ここにまとめておきます。
 
+- [C# と .NET でのログ記録](https://learn.microsoft.com/ja-jp/dotnet/core/extensions/logging?tabs=command-line)
 - [.NET Core および ASP.NET Core でのログ記録](https://learn.microsoft.com/ja-jp/aspnet/core/fundamentals/logging/?view=aspnetcore-8.0)
 - [ASP.NET Core での HTTP ログ](https://learn.microsoft.com/ja-jp/aspnet/core/fundamentals/http-logging/?view=aspnetcore-8.0)
 - [ASP.NET Core の W3C ロガー](https://learn.microsoft.com/ja-jp/aspnet/core/fundamentals/w3c-logger/?view=aspnetcore-8.0)
@@ -29,6 +30,8 @@ title: ASP.NET Core アプリケーションと Azure App Service のログ出�
 - [EF Core での Microsoft.Extensions.Logging の使用](https://learn.microsoft.com/ja-jp/ef/core/logging-events-diagnostics/extensions-logging?tabs=v3)
 - [Azure App Service の監視の概要](https://learn.microsoft.com/ja-jp/azure/app-service/overview-monitoring)
 - [Azure App Service に ASP.NET Core アプリを展開する](https://learn.microsoft.com/ja-jp/aspnet/core/host-and-deploy/azure-apps/?view=aspnetcore-8.0&tabs=visual-studio#application-configuration)
+- [Azure Container Apps での監視](https://learn.microsoft.com/ja-jp/azure/container-apps/observability)
+- [コンソール ログの書式設定](https://learn.microsoft.com/ja-jp/dotnet/core/extensions/console-log-formatter)
 
 # まずはデフォルトで確認できるログについて
 
@@ -848,7 +851,7 @@ builder.Services.Configure<AzureBlobLoggerOptions>(options =>
 
 ただログストリームは割と遅延というかタイムラグがあるのがちょっとストレスですね。
 
-### 環境変数によるログ設定の変更
+### 環境変数によるログ レベル フィルターの変更
 
 ログの確認方法としては上記の通りなのですが、App Service には本番環境としてデプロイされているので、
 appsettings.Development.json や sercrets.json で設定したフィルター条件は失われ、
@@ -856,9 +859,135 @@ appsettings.json に記載した値のみが有効になっています。
 
 ただ本番環境にデプロイ済みのファイルである appsettings.json を、しかも運用中に書き換えるのはよろしくないケースも多いでしょう。
 こういう場合は設定値を環境変数で上書きすることが可能です。
-環境変数は json ファイルのようなツリー構造を持ちませんが、下記のように `:` で区切ってパラメータを指定することでフィルターを調整できます。
+環境変数は json ファイルのようなツリー構造を持ちませんが、下記のように `:` でセクションを区切ってパラメータを指定することでフィルターを調整できます。
+
+```env
+Logging:LogLevel:FilterName=LogLevel
+```
 
 ![Configure log settings with environment variable](./images/logsettings-envvar.png)
+
+
+## Azure Container Apps でのログ確認
+
+コンテナアプリの場合は標準出力にログを出すことが一般的です。
+つまり上記のサンプルのように Console ログプロバイダーが動いてれば、あとは実行環境側で集めてやるだけです。
+
+### ログ ストリームで確認
+
+Azure Container App のメニューに「ログ ストリーム」があるので、そちらで確認するのが手っ取り早いでしょう。
+
+![azure container apps log streaming](./images/aca-logstream.png)
+
+### 環境変数によるログ レベル フィルターの変更
+
+App Service の場合と同様に、フィルターとしては appsettings.json に記載されたフィルター設定が有効になっていますので、それを環境変数で上書きすることで調整可能です。
+注意点としては Linux 環境の場合には環境変数の名前として `:` （コロン）が使えませんので、`__`（アンダースコア２つ）で区切ってやります。
+
+```env
+Logging__LogLevel__FilterName=LogLevel
+```
+![alt text](./images/aca-logsettings-envvar.png)
+
+### Log Analytics に転送して永続化
+
+ログ ストリームだけですと収集中に Azure Portal とにらめっこする羽目になりますので、外部ストレージに永続化しておきましょう。
+Container Apps **環境** の診断設定を開くとアプリがコンソールに出力したログを Log Analytics や Blob に転送することが可能です。
+（Container App 個別の設定ではありませんのでご注意）
+Kusto でクエリがかけられるようになるまで若干の遅延がありますが、事後調査できるので便利ですね。
+
+![alt text](./images/aca-diagnostics.png)
+
+### Console ログ プロバイダーのカスタマイズ
+
+Log Analytics に出力されたログを眺めていると「ログレベルやカテゴリの行」と「ログのメッセージ行」がバラバラになっていることが分かります。
+またタイムスタンプ `TimeGenerated` が全く同じなので、ソートしても順不同になってしまっており、特にメッセージ行が複数にわたる場合はとてもツラいことになっています。
+Container Apps としては「ログ」としての塊を意識してるわけではなく、標準出力や標準エラーに出てきた文字を転送してるだけなので仕方ないのですが、アプリケーションからコンソール出力のフォーマットを調整してやった方が見やすいでしょう。
+
+さて、そもそもなぜ `ILogger` への書き込みがログに出力されていたかといえば、Program.cs で WebApplication Builder が既定でログ プロバイダーというサービスが自動で組み込まれていたからです。
+
+```csharp
+// 既定でいくつかの Console 等のログプロバイダーが組み込まれている。
+var builder = WebApplication.CreateBuilder(args);
+
+// App Service のアプリケーション ログに出力したいときは追加のプロバイダーを組み込んだ
+builder.Logging.AddAzureWebAppDiagnostics();
+```
+
+既定で組み込まれている 
+[ConsoleLoggerProvider](https://learn.microsoft.com/ja-jp/dotnet/api/microsoft.extensions.logging.console.consoleloggerprovider?view=dotnet-plat-ext-8.0)
+クラスは
+[SimpleConsoleFormatterOption](https://learn.microsoft.com/ja-jp/dotnet/api/microsoft.extensions.logging.console.simpleconsoleformatteroptions?view=dotnet-plat-ext-8.0)
+に指定されている既定値で動作しています。
+このカスタマイズは Program.cs で実装するか、appsettings.json や環境変数の設定でカスタマイズ可能です。
+
+今回はとりあえず１行で出力できればいいので、プログラム修正をせずに以下を設定してみます。
+これ以外のフォーマット オプションもありますので、詳細はドキュメントを参照してください。
+
+```json
+"Logging": {
+      "LogLevel":{
+            "Default": "Information"
+      },
+      "Console": {
+            "FormatterName": "simple",
+            "FormatterOptions": {
+                  "SingleLine": true
+            }
+      }
+}
+```
+
+さて `dotnet run` してログの出方を確認すると、１行に収まるようにフォーマットが変わっていることが分かります。
+
+```log
+info: Microsoft.Hosting.Lifetime[14] Now listening on: https://localhost:7105
+info: Microsoft.Hosting.Lifetime[14] Now listening on: http://localhost:5202
+info: Microsoft.Hosting.Lifetime[0] Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0] Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0] Content root path: C:\Users\ainaba\source\repos\aspnetcore-logging-sample
+crit: aspnet_logging_sample.Pages.IndexModel[999] Index.cshtml.cs の OnGet が呼ばれました（Crit）
+fail: aspnet_logging_sample.Pages.IndexModel[888] Index.cshtml.cs の OnGet が呼ばれました（Err）
+warn: aspnet_logging_sample.Pages.IndexModel[777] Index.cshtml.cs の OnGet が呼ばれました（Warn）
+info: aspnet_logging_sample.Pages.IndexModel[666] Index.cshtml.cs の OnGet が呼ばれました（Info）
+info: aspnet_logging_sample.MyBizLogic[1] Calling httpbin
+info: System.Net.Http.HttpClient.Default.LogicalHandler[100] Start processing HTTP request GET https://httpbin.org/image/png
+info: System.Net.Http.HttpClient.Default.ClientHandler[100] Sending HTTP request GET https://httpbin.org/image/png
+```
+
+Azure Container Apps では環境変数で指定してあげてください。
+ログストリームや Log Analytics でクエリをかけてやれば、もうちょっと見やすくなっていることがわかるでしょう。
+
+```bash
+# 環境変数の場合
+Logging__Console__FormatterName=simple
+Logging__Console__FormatterOptions__SingleLine=true
+```
+
+なお上記で `Logging:LogLevel` の兄弟セクションとして `Logging:Console` を追加していますが、これは Console ログ プロバイダー向けの設定を行うセクションです。
+ここではフォーマッターの設定変更のみを行っていますが、ログ プロバイダー固有のログ レベル フィルターを指定することが可能です。
+つまり出力先に応じてログの詳細度を変えることが可能ですので、トラブルシュートの状況に合わせてご活用ください。
+
+### Application Insights でログを見たい
+
+App Service の場合は Application Insights を有効化するだけで自動的にデータが反映されました。
+これは自動インストル メンテーションなどと呼ばれます。
+しかし Azure Container Apps の場合はこの機能がありませんので、アプリの中から明示的に行う必要があります。
+
+前述のとおり、「ログをどのように出力するか？」を決めているのはログ プロバイダーですので、
+[Application Insights ログプロバイダー](https://learn.microsoft.com/ja-jp/azure/azure-monitor/app/ilogger) を組み込んでやればいいわけです。
+詳細はドキュメントを参照していただければと思いますが、大まかには以下のようになります。
+
+```bash
+# 追加のライブラリを読み込んで
+dotnet add package Microsoft.Extensions.Logging.ApplicationInsights
+```
+```csharp
+// サービスにログプロバイダーを追加
+builder.Logging.AddApplicationInsights(
+        configureTelemetryConfiguration: (config) => 
+            config.ConnectionString = "APPLICATIONINSIGHTS_CONNECTION_STRING"    );
+```
 
 
 # まとめ
