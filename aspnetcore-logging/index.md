@@ -14,6 +14,8 @@ title: ASP.NET Core アプリケーションと Azure App Service のログ出�
 この手の相談は結構な頻度でいただくのでちょっとまとめてみようかなと思ったんですが、実行環境やフレームワークによってお作法も様々ですので、網羅するのはちょっと辛い。
 というわけで、ASP.NET Core で作ったアプリを Azure App Service にデプロイする前提でまとめてみようと思いました。
 
+![logging overview](./images/overview.png)
+
 ## 参考情報
 
 参考にするドキュメントが多岐に渡るので、ここにまとめておきます。
@@ -79,7 +81,7 @@ loglevel: カテゴリー名[eventid]
 デフォルトで取れるログってのは大事ですよね。
 ~~開発時にログのことをあまり考慮してなくて、後付けで必要になっちゃうこともあるわけです。~~
 
-# ASP.NET　Core　フレームワークが出力しているログを充実させる
+# ASP.NET Core フレームワークが出力しているログを充実させる
 
 プレーンな Console アプリでもない限り、多くの .NET アプリはなんらかのフレームワークの上で動いています。
 ここでは ASP.NET Core Razor Pages がそのフレームワークです。
@@ -186,7 +188,7 @@ info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
 info: Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure.PageActionInvoker[105]
       Executing handler method aspnet_logging_sample.Pages.IndexModel.OnGet - ModelState is Valid
 ```
-上記からは テンプレートで生成された `IndexModel（Index.cshtml + Index.cshtml.cs）` クラスの `OnGet` メソッドで処理しています。
+上記からは テンプレートで生成された `IndexModel（Index.cshtml + Index.cshtml.cs）` クラスの `OnGet` メソッドで処理していrることが分かります。
 
 ```log
 info: Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware[6]
@@ -279,7 +281,7 @@ $ touch  ~/.microsoft/usersecrets/guid-of-user-secret-id/secrets.json
 なお構成設定の上書きは環境変数で行うことも可能です。
 ただこれは開発環境というよりは本番環境向けかなと思いますので後ほど。
 
-# もっとログを増やしたい
+# クラスライブラリが出力しているログも取得したい
 
 ここまではもともとフレームワークが出力しているけれど表示されていなかったログを表示する方法でした。
 また設定変更だけですのでソースコードに手を入れにくい（入れらなない）時でも使える方法です。
@@ -287,7 +289,7 @@ $ touch  ~/.microsoft/usersecrets/guid-of-user-secret-id/secrets.json
 
 ## アプリに到達した HTTP(S)　通信ログ
 
-ASP.NET のアプリケーションを作ってるわけですから、なんらかのクライアントから HTTP(S) のプロトコルで通信が行われていることでしょう。
+ASP.NET のアプリケーションを作ってるわけですから、なんらかのクライアントから HTTP(S) のプロトコルで通信が行われているはずです。
 通信プロトコルレベルでの処理はフレームワークがやってくれてますので通常はあまり意識することはないんですが、
 トラブルシュートとなるとプロトコルレベルまで深掘りしたいこともあるでしょう。
 というわけでHTTPのログを増やしたいと思います。
@@ -320,8 +322,8 @@ app.UseHttpLogging();
 ```
 
 そうすると以下のように通信ログが混じってきます。
-ログ出力の内容の詳細はスタートアップコードの中で、`AddHttpLogging` に渡しているラムダ式で指定できます。
-具体的な方法はドキュメントを参照してください。
+これまでもログに含まれていた、ユーザーリクエストを最終的に処理している `EndpointMiddleware` のログと一緒に、
+`HttpLoggingMiddleware` が出力する HTTP レベルでの通信ログが確認できますね。
 
 ```log
 info: Microsoft.Hosting.Lifetime[0]
@@ -361,9 +363,13 @@ info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
       Executed endpoint '/Index'
 ```
 
+ログ出力の内容の詳細はスタートアップコードの中で、`AddHttpLogging` に渡しているラムダ式の中でカスタマイズできます。
+具体的な方法はドキュメントを参照してください。
+
+
 ## W3C　形式の HTTP ログ
 
-同じくHTTPレベルの通信ログなのですが、W3C 標準形式のログファイルが欲しい場合もあるでしょう。
+こちらも同じくHTTPレベルの通信ログなのですが、W3C 標準形式のログファイルが欲しい場合もあるでしょう。
 その場合はリクエスト パイプラインを構成しているミドルウェアの先頭に `W3CLogger` ミドルウェアを追加します。
 
 ```csharp
@@ -417,6 +423,8 @@ builder.Services.AddHttpClient();
 ```
 
 実際に `HttpClient` を使用して外部 Web API を呼び出すコードは以下のようになります。
+ここではユーザーコードのログ（ `_logger.LogInformation` で書いてるログ）とともに出力しています。
+ユーザーコードのログの書き方は後の方でもう少し詳しく解説します。
 
 ```csharp
 private readonly ILogger<IndexModel> _logger;
@@ -445,7 +453,7 @@ public async Task OnGet() {
 ```
 
 そうすると以下のようなログが出力されます。
-ここでは後述のユーザーコードのロギングとともに出力しています。
+今回追加されたのは `System.Net.Http.HttpClient.Default` 配下のカテゴリーです。
 自分のコードでは明示的に書いていない Web API の URL やレスポンスタイムなんかが勝手に出力されてますね。
 
 ```log
@@ -464,7 +472,7 @@ info: aspnet_logging_sample.Pages.IndexModel[2]
 ```
 
 既定の appsettings.{Development}.json では `Default` カテゴリのログレベルが `Information` になっているので、
-特にフィルター定義をいじらなくても出力されるはずです。
+特にフィルター定義をいじらなくても出力されているはずです。
 もし出力されない場合は `System.Net.Http` 配下のカテゴリがフィルターで除去される設定になっていないか確認しましょう。
 
 > ここでは最もシンプルなサンプルを載せていますので、カテゴリが `System.Net.Http.HttpClient.Default.xxx` になっています。
@@ -477,7 +485,8 @@ info: aspnet_logging_sample.Pages.IndexModel[2]
 
 
 なお `HttpClient` のコンストラクタを使って自力でインスタンスを生成している場合には、いくらフィルターを設定したところでログがでませんのでご注意ください。
-その場合はコード修正が必要になります。
+つまり「外部 API 呼び出しのログが出なくて困っている」ということは、DI を使わずに自力で `new` してしまっている可能性が高いです。
+その場合はコード修正をお勧めします。
 
 ```csharp
       // これだと自動でログが出ない
@@ -485,21 +494,21 @@ info: aspnet_logging_sample.Pages.IndexModel[2]
       var response = await client.SendAsync(request);
 ```
 
-## Azure クライアントのログ
+## Azure サービスを呼び出すクライアント ライブラリのログ
 
 さて外部のクラスライブラリの第２弾です。
 前述のように Web API を呼び出す時に `HttpClient` のような汎用的なライブラリではなく、
 Web API の提供元やサードパーティから提供されている SDK を使用できる場合はその方が便利です。
-例えば Azure が提供している各種サービス、より具体的には Storage Blob、Storage Queue、Key Vault, Azure OpenAI Service、Computer Vision などです。
-REST API の仕様を読み込んで直接呼び出すのは辛いですよね。
+例えば Azure が提供している各種サービス、より具体的には Storage Blob、Storage Queue、Key Vault, Azure OpenAI Service、Computer Vision などが該当します。
+これらの REST API の仕様を読み込んで直接呼び出すのは辛いですよね。
 仕方なく `HttpClient` で頑張るケースの無くはないですが、基本的には
 [Azure SDK for .NET](https://learn.microsoft.com/en-us/dotnet/azure/sdk/azure-sdk-for-dotnet)
 を使うのではないでしょうか。
 
-ただその場合には内部的に通信に使われている（かもしれない）`HttpClient` なりにアクセスすることが難しいわけです。
+ただその場合には内部的に通信に使われている（かもしれない）`HttpClient` のライフサイクルに関与することが難しいわけです。
 こういった SDK を使う場合のログ出力のお作法は SDK 次第になるのですが、
 Azure SDK for .NET の場合は `HttpClient` の場合と同様に `Microsoft.Extensions.Logging` の仕組みに合わせることが可能です。
-つまり Dependency Injection を使用しているかが勝負です。
+結果から言えばこれも Dependency Injection を使用しているかが勝負です。
 
 例えば Storage Blob を使用したい場合で解説していきます。
 まず追加のライブラリが必要なので、プロジェクトにパッケージを追加します。
@@ -536,6 +545,7 @@ builder.Services.AddAzureClients( acbuilder => {
     public async Task OnGet() {
         // 名前付きのクライアントとして登録してあるので、呼び出す時に名前指定で CreateClient して利用する
         var bsClient = _blobSvcClientFactory.CreateClient("myStorage");
+        // あとは普通に使うだけ
         var container = bsClient.GetBlobContainerClient("containerName");
         await foreach (var blob in container.GetBlobsAsync())
         {
@@ -544,9 +554,9 @@ builder.Services.AddAzureClients( acbuilder => {
     }
 ```
 
-出力されるログは以下のようになります。
-`Azure.Core` カテゴリとして `Information` ログレベル以上の内容が出力されています。
-利用している Blob サービス REST API の URL などが勝手に出力されてますね。
+ここでは Blob コンテナに保存されている Blob の一覧をログ出力しているので以下のような結果が出てきます。
+`Azure.Core` カテゴリとして `Information` レベルのログとして、
+利用している Blob サービス REST API の URL などが勝手に出力されてることが確認できます。
 
 ```log
 info: Azure.Core[1]
@@ -630,7 +640,7 @@ public class IndexModel : PageModel {
 }
 ```
 
-そうすると ASP.NET Core が自動的に出してるログに混じって、以下のようにログが出力されると思います。
+そうすると ASP.NET Core やライブラリが自動的に出してるログに混じって、以下のようにログが出力されると思います。
 
 ```log
 crit: aspnet_logging_sample.Pages.IndexModel[999]
@@ -672,11 +682,10 @@ var app = builder.Build();
 app.MapRazorPages();
 ```
 
-HTTP リクエストが ASP.NET Core フレームワークに到着すると、各ページのインスタンスが自動生成されて Dependency Injection されていたわけです。
-DI によって生成されるクラスにも DI されるので、コンストラクタに `ILogger<T>` の引数を追加しておくだけでよかったんですね。
-ここまで例に挙げてきた `HttpClient` や `BlobServiceClient` などと同様の仕組みなわけです。
-
-と言うわけで、Razor Page じゃない自作クラスに関しても、DI の仕組みに乗っかってやれば `ILogger<T>` がもらえるので、`Microsoft.Extensions.Logging` の仕組みでログ出力できるわけですね。
+HTTP リクエストが ASP.NET Core フレームワークに到着すると、そのルートに一致する各 Razor Page のインスタンスが DI によって自動生成され、そのコンストラクタで要求されてる `ILogger<T>` のインスタンスも自動生成されて注入されていたわけです。
+だからコンストラクタに `ILogger<T>` の引数を追加しておくだけでよかったんですね。
+つまりここまで例に挙げてきた `HttpClient` や `BlobServiceClient` などと同様の仕組みなわけです。
+と言うわけで、Razor Page じゃない自作クラスに関しても、同じ仕組みに乗っかってやれば良いことになります。
 
 例えば以下のような `MyBizLogic` クラスを作って、`IndexModel` に直接書いていたロジックを切り出します。
 
@@ -728,7 +737,8 @@ public class MyBizLogic
 builder.Services.AddTransient<MyBizLogic>();
 ```
 
-Razor Page ではインスタンスを注入してもらえば良いわけです。
+このクラスを利用する Razor Page ではインスタンスを注入してもらえば良いわけです。
+
 ```csharp
     private readonly MyBizLogic _bizLogic;
     // 自作クラスをコンストラクタ引数で受けて
@@ -772,13 +782,13 @@ info: Azure.Core[5]
 
 ## とにかくカテゴリとフィルターが重要
 
-改めて重要なのはカテゴリー（＝名前空間とクラス名）と、それによるフィルターですね。
+改めて重要なのはログのカテゴリー（＝名前空間とクラス名）と、それによるフィルターです。
 自作のコードの場合、カテゴリ名は DI フレームワークに挿入してもらう `ILogger<T>` の Generic 型引数 `T` で決まりますので、汎用の `ILogger` を使わないようにしましょう。
-この型引数（ここでは `IndexModel`）があるからこそ、どのコードが出力したログかが分かるわけですし、それによって適切なフィルターもかけられるわけです。
+この型引数（上記では `IndexModel` や `MyBizLogic`）が正しく指定されているからこそ、どのコードが出力したログかが分かるわけですし、それによって適切なフィルターもかけられるわけです。
 
 つまり他のページのコードをコピペして「型引数を書き換え忘れる」とかもってのほかです。
-カテゴリが変わってしまうので、どこから出てきたログなのかわからないでログとしての信頼性を失いますし、
-フィルター変えても表示されなかったりするのでトラブルシュートの効率が極端に下がります。
+これが間違っているとどこから出てきたログなのかわからないで情報としての信頼性を失いますし、
+フィルターを調整しても思うように表示されたりされなかったりするのでトラブルシュートの効率が極端に下がります。
 
 皆さんもお気をつけください（反省）
 
@@ -808,7 +818,7 @@ App Service の設定で「アプリケーションのログ記録」を有効�
 
 ![enable app service applog](./images/enable-appservice-applog.png)
 
-と、思いきや、これを使用するには ASP.NET Core でも一定の構成が必要です。
+と、思いきや、これを使用するには ASP.NET Core 側でも一定の構成が必要です。
 まず必要なパッケージを組み込みます。
 ```bash
 dotnet add package Microsoft.AspNetCore.AzureAppServices.HostingStartup
