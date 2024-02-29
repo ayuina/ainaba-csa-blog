@@ -361,8 +361,10 @@ info: Microsoft.Hosting.Lifetime[0]
 
 ![alt text](./images/aspnetcore-razorpages-from-container.png)
 
+動作確認をしたら `Ctrl-C` で ASP.NET アプリを止めてあげてください。
+それに伴いコンテナも終了します。
 
-## 補足
+## 補足 : コマンドラインによるイメージの定義
 
 上記の Dockerfile は既に Microsoft が構築・公開している ASP.NET ランタイムがインストール済みのイメージを使用しています。
 このため発行したアプリケーション コンテンツをコンテナ内にコピーするだけで実行できています。
@@ -396,6 +398,46 @@ ENTRYPOINT /usr/sbin/nginx -g 'daemon off;'
 ローカルホストのポート 8888 がコンテナ内で NGINX が待機するポート 80 にマッピングされてるので、ブラウザでアクセスすることが出来ます。
 
 ![alt text](./images/nginx-default-page-from-container.png)
+
+動作確認が終わったら `Ctrl + C` で NGINX を止めてあげてください。
+それに伴いコンテナも終了します。
+
+## 補足 : バックグラウンドでのコンテナ起動
+
+これまで `docker run` の際に `-it` オプションを指定することで、コンテナ内で動作しているアプリの標準入出力が操作中のターミナルに接続されていました。
+ただ Web サーバーのようなバックグラウンドで動作するアプリケーションは、コンテナとしてもバックグラウンド プロセスとして動作させたいことでしょう。
+
+この場合は `-d` オプションで起動することができます。
+
+```powershell
+> docker run -d -p 8080:5000 aspnet-docker-demo:v1 .
+02f1a906864fdbafd4d425e5ef4741d7a83d3e42488267b86c386f94e31896cc
+
+# docker run すると起動したコンテナの ID が表示され、プロンプトに復帰
+> 
+```
+
+動作確認方法は同様ですが、ターミナルが接続されていないので `Ctrl + C` で止めることが出来ません。
+前述の `docker ps` コマンドを使用してプロセスを確認して、`docker stop` で停止することが出来ます。
+
+```powershell
+# コンテナ一覧を確認
+> docker ps
+
+CONTAINER ID   IMAGE                     COMMAND                   CREATED             STATUS                         PORTS                    NAMES
+02f1a906864f   aspnet-docker-demo:v1     "dotnet aspnet-docke…"   6 minutes ago       Up 6 minutes                   0.0.0.0:8080->4000/tcp   laughing_torvalds     
+
+# コンテナ ID が起動時のものと一致しているコンテナが、ステータスも Up （実行中）になっているので、これを停止したい
+> docker stop 02f1a906864f
+
+# 終了済みのコンテナは -a オプションをつけて確認。過去に使用して削除（docker rm）してないものも表示される。
+> docker ps -a
+
+CONTAINER ID   IMAGE                     COMMAND                   CREATED             STATUS                         PORTS     NAMES
+02f1a906864f   aspnet-docker-demo:v1     "dotnet aspnet-docke…"   9 minutes ago       Exited (0) 7 seconds ago                 laughing_torvalds
+f4329130d8a4   mynginx                   "/bin/sh -c '/usr/sb…"   12 minutes ago      Exited (130) 11 minutes ago              pensive_swirles
+480c53db98a8   5a3ab56068ef              "/bin/bash"               About an hour ago   Exited (0) About an hour ago             stoic_gould
+```
 
 
 # Azure Web App for Container への配置
