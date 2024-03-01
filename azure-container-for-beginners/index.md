@@ -310,7 +310,7 @@ ENTRYPOINT ["dotnet", "aspnet-docker-demoscript.dll"]
 
 ## Dockerfile に基づいてコンテナイメージを生成 : docker build
 
-定義が出来たのでコンテナイメージを作製していきます。
+コンテナ イメージの定義が出来たので、実際にコンテナ イメージを作成していきます。
 
 ```powershell
 # -t オプションで「イメージ名」を指定、イメージ名は（リポジトリ:タグ）の形式
@@ -324,7 +324,7 @@ ENTRYPOINT ["dotnet", "aspnet-docker-demoscript.dll"]
 ```powershell
 > docker images
 
-# 先ほど使っていた ubuntu とは別に作製されている
+# 先ほど使っていた ubuntu とは別のものが出来ている
 REPOSITORY                                       TAG              IMAGE ID       CREATED             SIZE
 aspnet-docker-demo                               v1               0fde8f7437a3   About an hour ago   226MB
 ubuntu                                           latest           3db8720ecbf5   2 weeks ago         77.9MB
@@ -346,9 +346,9 @@ warn: Microsoft.AspNetCore.DataProtection.Repositories.FileSystemXmlRepository[6
 warn: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[35]
       No XML encryptor configured. Key {0c2aa4b8-967c-4421-acd8-b1ace7738608} may be persisted to storage in unencrypted form.
 warn: Microsoft.AspNetCore.Hosting.Diagnostics[15]
-      Overriding HTTP_PORTS '8080' and HTTPS_PORTS ''. Binding to values defined by URLS instead 'http://+:4000'.
+      Overriding HTTP_PORTS '8080' and HTTPS_PORTS ''. Binding to values defined by URLS instead 'http://+:55000'.
 info: Microsoft.Hosting.Lifetime[14]
-      Now listening on: http://[::]:4000
+      Now listening on: http://[::]:5000
 info: Microsoft.Hosting.Lifetime[0]
       Application started. Press Ctrl+C to shut down.
 info: Microsoft.Hosting.Lifetime[0]
@@ -364,13 +364,13 @@ info: Microsoft.Hosting.Lifetime[0]
 動作確認をしたら `Ctrl-C` で ASP.NET アプリを止めてあげてください。
 それに伴いコンテナも終了します。
 
-## 補足 : コマンドラインによるイメージの定義
+## 補足 : RUN 命令によるイメージの定義
 
 上記の Dockerfile は既に Microsoft が構築・公開している ASP.NET ランタイムがインストール済みのイメージを使用しています。
 このため発行したアプリケーション コンテンツをコンテナ内にコピーするだけで実行できています。
 
 場合によっては通常のコマンド実行を使用した各種ソフトウェアのインストールや設定が必要になるケースもあります。
-このような場合には Dockerfile 内で `RUN` コマンドを使用することで、各種ソフトウェアのインストールなどを行うことも可能です。
+このような場合には Dockerfile 内で `RUN` 命令を使用することで、各種ソフトウェアのインストールなどを行うことも可能です。
 例えば、先ほど手動で構築したような、「Ubutu に NGINX をインストール済みのコンテナイメージ」を作製する場合の Dockerfile は以下のようになります。
 
 ```dockerfile
@@ -401,6 +401,10 @@ ENTRYPOINT /usr/sbin/nginx -g 'daemon off;'
 
 動作確認が終わったら `Ctrl + C` で NGINX を止めてあげてください。
 それに伴いコンテナも終了します。
+
+Dockerfile の仕様について詳細を確認したい場合は
+[Dockerfile リファレンス](https://docs.docker.jp/engine/reference/builder.html)
+を参照してください。
 
 ## 補足 : バックグラウンドでのコンテナ起動
 
@@ -438,6 +442,10 @@ CONTAINER ID   IMAGE                     COMMAND                   CREATED      
 f4329130d8a4   mynginx                   "/bin/sh -c '/usr/sb…"   12 minutes ago      Exited (130) 11 minutes ago              pensive_swirles
 480c53db98a8   5a3ab56068ef              "/bin/bash"               About an hour ago   Exited (0) About an hour ago             stoic_gould
 ```
+
+docker コマンドの詳細を確認したい場合は
+[Docker CLI コマンドライン リファレンス](https://docs.docker.jp/engine/reference/commandline/toc.html)
+を参照してください。
 
 
 # Azure Web App for Container への配置
