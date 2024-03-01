@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [コンテナアプリ開発と Azure サービスへのデプロイ（初学者向け）](./azure-container-for-beginners/)
 - [ASP.NET Core アプリケーションと Azure App Service のログ出力と確認](./aspnetcore-logging/)
 - [App Service (Web アプリ) から App Service（Web API） を呼び出す時の EasyAuth を使用した Authorization Code flow](./appsvc-easyauth-to-easyauth)
 - [管理者視点で見たい Microsoft Dev Box 監査系のログ](./devbox-logging)
