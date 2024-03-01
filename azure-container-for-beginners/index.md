@@ -457,9 +457,170 @@ docker コマンドの詳細を確認したい場合は
 
 ## コンテナレジストリの作成
 
-## コンテナイメージのアップロード : docker push
+開発したコンテナ イメージは開発端末にあるだけで、外部からアクセスできる状態ではありません。
+クラウド環境で動作させるためには、クラウド環境からアクセスできる場所にコンテナ イメージが存在する必要があります。
+このようにコンテナ イメージを配置しておく場所をコンテナ レジストリと呼ぶのですが、Azure では 
+[Azure Container Registry](https://learn.microsoft.com/ja-jp/azure/container-registry/container-registry-intro)
+というサービスが利用できます。
 
-## Web App for Container の作成
+ここでは詳細な構築手順は割愛しますが、[Azure ポータルのマーケットプレイス](https://portal.azure.com/#create/Microsoft.ContainerRegistry) で以下のようなオプションで構築したものとします。
 
+![creating acr](./images/creating-acr.png)
+
+詳細な構築手順は
+[チュートリアル](https://learn.microsoft.com/ja-jp/azure/container-registry/container-registry-get-started-portal?tabs=azure-cli)
+などを参考にしてください。
+
+## コンテナ イメージをレジストリにアップロード : docker push
+
+こちらも概ね上記のチュートリアルに記載があるのですが、上記で作ったコンテナイメージに合わせて作業を紹介していきます。
+
+### Azure Cotainer Registry にログイン
+
+Azure Container Registry に接続するためには認証が必要です。
+
+```powershell
+# まずは Azure にログイン
+> az login
+
+# 使用するサブスクリプションを設定（サブスクリプションIDは自身のものに読み替えてください）
+> az account set -s guid-of-your-azure-subscription
+
+# Azure Container Registry にログイン（Azure Container Registryの名前は自身のものに読み替えてください）
+> az acr login -n yourAcrName
+
+Login Succeeded
+```
+
+これで認証情報が開発端末にキャッシュされ、この後の docker コマンドで暗黙的に利用できるようになります。
+
+またこの後の作業で作成した Container Registry のドメイン名（LOGIN SERVER）も必要になるので確認しておきます。
+形式としては `yourAcrName.azurecr.io` と決まっているので必須ではありません。
+
+```powershell
+> az acr show -n yourAcrName -o table
+
+NAME       RESOURCE GROUP    LOCATION    SKU    LOGIN SERVER          CREATION DATE         ADMIN ENABLED
+---------  ----------------  ----------  -----  --------------------  --------------------  ---------------
+myacr0301  demo0301-rg       japaneast   Basic  myacr0301.azurecr.io  2024-03-01T01:39:07Z  False
+```
+
+### コンテナ イメージにタグをつける : docker tag
+
+開発したイメージを Azure Container Registry にアップロード（プッシュするといいます）するには、
+レジストリのログイン サーバー名で修飾したタグをつけてやる必要があります。
+例えば先ほどの例だと以下のようになります。
+
+```powershell
+# ログインサーバー名とコンテナイメージの名前をスラッシュで区切ったものをつける
+> docker tag aspnet-docker-demo:v1  yourAcrName.azurecr.io/aspnet-docker-demo:v1
+
+# docker tag で指定した名前で、IMAGE ID が一致しているものが増えていれば成功
+> docker images
+
+REPOSITORY                                       TAG              IMAGE ID       CREATED        SIZE
+mynginx                                          latest           e15a238cfb3e   19 hours ago   187MB
+aspnet-docker-demo                               v1               0fde8f7437a3   20 hours ago   226MB
+yourAcrName.azurecr.io/aspnet-docker-demo        v1               0fde8f7437a3   20 hours ago   226MB
+```
+
+### Azure Container Registry にプッシュ : docker push
+
+準備が出来たらプッシュ（アップロード）します。
+
+```powershell
+# タグ付けしたものを docker push
+> docker push yourAcrName.azurecr.io/aspnet-docker-demo:v1
+
+# 進捗が表示されるので終わるのを待つ
+The push refers to repository [yourAcrName.azurecr.io/aspnet-docker-demo]
+414dcb33a532: Pushed
+03696d84c454: Pushed 
+72c8626861d0: Pushed
+b5d6b57c452a: Pushed 
+904b7c68bb35: Pushed
+0e7835d3629d: Pushed
+5fb1f9b6ab0b: Pushed
+571ade696b26: Pushed
+v1: digest: sha256:bea6247193d02d17a61dbe770a559ec5c1bbd8ceef808837636a411bfad0b348 size: 1997
+```
+
+Push したイメージは az コマンドや Azure ポータルで確認できます。
+
+```powershell
+# レジストリ内にあるリポジトリの確認
+> az acr repository list -n yourRegistryName                      
+
+[
+  "aspnet-docker-demo"
+]
+
+# リポジトリ内のタグ一覧を表示
+> az acr repository show-tags -n yourRegistryName --repository aspnet-docker-demo
+
+[
+  "v1"
+]
+```
+
+![alt text](./images/show-images-in-acr.png)
+
+
+## Web App for Containers で Web アプリを公開
+
+さて今度は開発したコンテナイメージをクラウド上に配置して公開します。Azure には
+[様々なコンテナ向けサービス](https://azure.microsoft.com/ja-jp/products/category/containers/)
+があるのですが、Web アプリのコンテナーを作りましたので、ここでは Web App for Containers を採用します。
+これは最も古くからある PaaS サービスである App Service のデプロイオプションの１つで、
+アプリケーションのコンテンツそのものではなく、コンテナ形式でデプロイ出来るというものです。
+
+### Web App for Containers を作成する
+
+ここでも詳細な構築手順は割愛しますが、[Azure ポータルのマーケットプレイス](https://portal.azure.com/#create/Microsoft.AppSvcLinux) から以下のオプションで構築するものとします。
+
+|基本タブ|Dockerタブ|
+|---|---|
+|![alt text](./images/creating-webapp4container-basic.png)|![alt text](./images/creating-webapp4container-docker.png)|
+
+ポイントは以下のようになります。
+
+- 公開オプションとして `Docker コンテナ` を選択する
+- オペレーティング システムは `Linux` を選択する（Linux コンテナを開発したので）
+- イメージソースは Azure Container Registry を指定する
+- オプションで先ほど Push したイメージを選択する
+
+### 開発したアプリケーションがクラウドで動作していることを確認する
+
+作成すると以下のような処理が行われます。
+
+- Web App for Container リソースが作成され、
+- Web App for Container 名がついた FQDN が作成され、
+- 開発して Container Registry に Push したコンテナイメージが Pull され、
+- コンテナが起動して（ASP.NET の Web アプリプロセスが起動して）、
+- フロントのロードバランサーからリクエストの割り当てを受けられるようになる
+
+のですが、上記のコンテナはポート 5000 を公開（EXPOSE）しているかを伝えていません。
+`WEBSITES_PORT` 環境変数を使用して、コンテナの待機ポートを教えてあげてください。
+
+![alt text](./images/websites-port-setting.png)
+
+これでブラウザーから Web アプリにアクセスすることが出来るようになります。
+何度も同じような画面ばかりで面白味がないのですが、ブラウザの URL 欄を見ると Azure 上で動いていることが分かります。
+なお、この際 Web App 側で TLS 終端処理も行われるようになるので、これまで開発環境では HTTP で通信していた Web アプリに対して、HTTPS で通信が出来ていることも確認できます。
+
+![alt text](./images/aspnetcore-razorpages-from-webapp.png)
 
 # まとめ
+
+Docker Desktop を使用したコンテナの基本操作から、コンテナ化したアプリの構築、クラウドへのデプロイまでの一連の作業を紹介してみました。
+この記事ではアプリケーションとしては ASP.NET を、クラウドサービスとしては Azure Web App for Container を採用していますが、要点としては他の言語やフレームワークでも同様になると思います。
+
+- コマンドで起動して待機状態に入る Web アプリを開発する
+- 配置用資源をビルドして Dockerfile でイメージに固める
+- 起動処理を ENTRYPOINT 命令で、待機ポートを EXPOSE 命令で指定しておく
+- Public にアクセス可能なレジストリにイメージを Push しておく
+- コンテナの実行環境となるサービスからイメージを Pull する
+
+ツールやサービスによっては色々と差異はありますし、コンテナアプリの開発としてもこれ以外にも従うべきお作法のようなものはいくつかあるのですが、まずはコンテナ初めての方が知っておくべき基本動作としてはこんなものじゃないかなと思います。
+
+
