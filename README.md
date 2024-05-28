@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure Functions 用の Azure OpenAI 拡張機能（プレビュー） を試してみた話](./azure-functions-aoai-extension)
 - [コンテナアプリ開発と Azure サービスへのデプロイ（初学者向け）](./azure-container-for-beginners/)
 - [ASP.NET Core アプリケーションと Azure App Service のログ出力と確認](./aspnetcore-logging/)
 - [App Service (Web アプリ) から App Service（Web API） を呼び出す時の EasyAuth を使用した Authorization Code flow](./appsvc-easyauth-to-easyauth)
