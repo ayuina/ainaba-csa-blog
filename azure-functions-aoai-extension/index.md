@@ -5,17 +5,18 @@ title: Azure Functions 用の Azure OpenAI 拡張機能（プレビュー） を
 
 # はじめに
 
-Azure Functions には [Azure OpenAI 拡張機能](https://azure.microsoft.com/ja-jp/updates/public-preview-azure-functions-extension-for-openai/) のプレビューを試してみました。
-例によってドキュメントに書いてあることばかりではあるのですが、ドキュメントを読んでもいまいち腑に落ちないことが多かったので試してみたことを紹介したいと思います。
+Azure Functions の [Azure OpenAI 拡張機能](https://azure.microsoft.com/ja-jp/updates/public-preview-azure-functions-extension-for-openai/) のプレビューを試してみました。
+例によってドキュメントに書いてあることばかりではあるのですが、ドキュメントを読んでもいまいち腑に落ちないことが多かったので、試してみたことを紹介したいと思います。
 とはいえまだプレビュー段階なので、今後変わる可能性があることはご承知おきください。
 
 ここではざっくり以下を試しています。
 
 - Chat Completion
 - Embedding
+- Vector Search
 - RAG : Retrieval-Augumented Generation
 
-未だに Assistant はよくわからんので試していませんorz
+なお未だに Assistant はよくわからんので試していませんorz
 
 
 # Azure サービスの準備
@@ -329,7 +330,7 @@ public class EmbeddingStoreResult
 }
 ```
 
-例によって関数内では何もしておらず、なんと出力バインドだけで Embedding とデータベースへの保存が行われます。
+例によって関数内では何もしておらず、なんと出力バインドだけでチャンク分割、ベクトル生成、データベースへの保存が行われます。
 
 - ベクトル データベースへの書き込みになるので、出力バインドを使用する
 - HttpTrigger の戻り値と ベクトルデータベースへの出力バインドの２つを返すために `EmbeddingStoreResult` クラスを用意
@@ -352,7 +353,7 @@ Content-Type: application/json
 }
 ```
 
-しかも初回呼び出し指示には勝手にインデックスが生成されます。
+しかも初回呼び出しで勝手にインデックスが生成されます。
 これは現状カスタマイズが出来ないので、`EmbeddingsStoreOutputAttribute` 第４引数による名づけ以外は自動生成に任せましょう。
 生成されたインデックス定義は以下のようになります。
 
@@ -478,5 +479,10 @@ Content-Type: application/json
 
 ## 補足
 
-今回は Azure Functions の OpenAI 拡張を試すのが主眼だったので、サンプルデータ自体を ChatGPT に生成させてしまったので、実はあまり RAG をやる意味がないサンプルになっています。
+今回は Azure Functions の OpenAI 拡張を試すのが主眼だったので、サンプルデータ自体も ChatGPT に生成させてしまったので、実はあまり RAG をやる意味がないサンプルになっています。
+実際 Playgroud でグラウンドデータなしで同じようなことを聞いてもちゃんと回答してくれます。
+
+![alt text](./images/playground-without-data.png)
+
 現実的には Blob にオリジナル ドキュメントをアップロードして、BlobTrigger や QueueTrigger で起動して非同期バッチ処理的にインデックス生成をやるパターンになるのではないでしょうか。
+うーん、ちゃんとデータ用意してやればよかった・・・
