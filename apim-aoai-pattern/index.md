@@ -334,7 +334,7 @@ API Management がエラー時のリトライを行う場合には、`backend` p
 
 ### （参考）Powershell で AOAI を呼び出すスクリプト
 
-API Management のエンドポイントに何度もリクエストを出さなければいけないので、簡単な Powershell スクリプトを組んでみました。
+負荷分散やバーストなど API Management のエンドポイントに何度もリクエストを出さときに、手動でボタンをぽちぽちするのは辛いので、簡単な Powershell スクリプトを組んでみました。
 
 ```powershell
 $url = "https://${apimName}.azure-api.net/openai/deployments/instruct/completions?api-version=2024-02-01"
@@ -357,4 +357,12 @@ for ($i = 0; $i -lt 2000; $i++)
 13 : 200 from Sweden Central 
 ```
 
-# 
+# 複数のアプリやユーザーが Azure OpenAI を共有する
+
+ここまではバックエンド側を単一の API Management に束ねて１つに見せるアプローチでしたが、
+ここからは Azure OpenAI 互換に仕立てた API Management のフロント側で、
+様々アプリケーションやユーザーが共有するパターンについて紹介していきます。
+
+（執筆中）
+
+
