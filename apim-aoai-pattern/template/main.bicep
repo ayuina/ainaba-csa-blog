@@ -101,3 +101,11 @@ module loadbalancing  'loadbalance.bicep' = {
     postfix: postfix
   }
 }
+
+module burst  'burst.bicep' = {
+  dependsOn: [facade, loadbalancing]
+  name: 'burst-pattern'
+  params: {
+    postfix: postfix
+  }
+}

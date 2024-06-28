@@ -131,7 +131,11 @@ Chat Completion 以外はバックエンドに転送されておらず、API Man
 
 # 様々なリージョンにデプロイされたモデル呼び出しのエンドポイントを集約する
 
-バックエンドの Open AI が 1 つだけでは寂しいので、複数の OpenAI をデプロイして API Management に集約したいのですが、これにはいくつかのパターンが考えられます。
+バックエンドの Open AI が 1 つだけでは寂しいので、複数の OpenAI をデプロイしつつ API Management に集約したいのですが、これにはいくつかのパターンが考えられます。
+
+- [様々なリージョンにデプロイされたモデルを呼び分ける（ファサード）](#様々なリージョンにデプロイされたモデルを呼び分けるファサード)
+- [複数のリージョンのクォータを束ねてスロットリングを回避する（負荷分散）](#複数のリージョンのクォータを束ねてスロットリングを回避する負荷分散)
+- [メインのデプロイでクォータが不足したら別のリージョンも使う（バースト）](#メインのデプロイでクォータが不足したら別のリージョンも使うバースト)
 
 ## 様々なリージョンにデプロイされたモデルを呼び分ける（ファサード）
 
@@ -287,18 +291,70 @@ Kusto クエリを使用してログを確認することで、単一の API Man
 これはスタンダードモデルでもプロビジョニング済みスループットモデルでも同じです。
 つまりクライアントとしてはメイン Azure OpenAI から 429 エラーを受け取った場合だけ、他のリージョンを呼び出すようにすればよいわけです。
 
+![burst pattern](./images/busrt-pattern.png)
+
+API Management がエラー時のリトライを行う場合には、`backend` policy で 
+[retry](https://learn.microsoft.com/ja-jp/azure/api-management/retry-policy)
+ポリシーを利用します。
+`retry` ポリシーは最初に子要素を実行するため、１回目は `inbound` ポリシーで指定したメインのバックエンドに、
+２回目は サブのバックエンドになるように `set-backend-service` を設定します。
+ここでは簡単のため、１度だけサブのバックエンドにフォールバックするようにして、そちらがエラーになったら諦めるスタイルにしています。
 
 
+```xml
+<!--最初にメインのバックエンドを指定-->
+<inbound>
+    <set-backend-service id="instruct-backend-policy" backend-id="completion-backend" />
+    <authentication-managed-identity resource="https://cognitiveservices.azure.com/" />
+</inbound>
+<backend>
+    <!-- 429 エラーになったら 1 回だけリトライする -->
+    <retry condition="@(context.Response.StatusCode == 429)" count="1" interval="0">
+        <choose>
+            <!-- １回目が失敗した場合には何らかの Body が存在するので、その場合はサブのバックエンドに切り替え -->
+            <when condition="@(context.Response.Body != null)">
+                <set-backend-service id="sub-instruct-backend-policy" backend-id="completion-backend-sub" />
+            </when>
+        </choose>
+        <!-- All API レベルの backend ポリシーを retry で上書きしてしまうため、明示的に転送ポリシーを指定 -->
+        <forward-request buffer-request-body="true" />
+    </retry>
+</backend>
+```
 
-負荷分散
-    - Single Endpoint
-        ○ いろんなリージョンのモデル呼び出し
-        ○ モデル名の固定
-    - Shared Quota
-        ○ トークンベースのスロットリング
-        ○ キーの払い出し
-        ○ ユーザー認証のログ取得、トークン数も取りたい
-    - Load Balancing
-        ○ マルチリージョン
-        ○ GPT4o なら
-Burst
+期待する挙動としては、大半のリクエストはメイン側に転送されるが、メイン側のクォータ制限に抵触した一部のリクエストのみがサブに転送される、というものです。
+モデルのデプロイメントに指定したクォータや、実際に生成されるプロンプト、max_token パラメタ等のバランスにもよりますが、うまくいくと以下のような結果が得られます。
+アプリケーション マップだとどちらかのバックエンドに偏っていることくらいしかわからないのですが、
+ログから 1 分間隔で転送先（target）の件数をカウントしてみるとわかりやすいでしょう。
+棒グラフのオレンジの方がメインリージョン（swedencentral）で、おおむね 1 分間に 9 件程度は捌けるのですが、それ以上のリクエストはサブリージョン（eastus）の方にリクエストが転送されていることがわかります。
+
+|アプリケーション マップ|ログから生成したグラフ|
+|---|---|
+|![alt text](./images/burst-aoai-appmap.png)|![alt text](./images/burst-aoai-log.png)|
+
+### （参考）Powershell で AOAI を呼び出すスクリプト
+
+API Management のエンドポイントに何度もリクエストを出さなければいけないので、簡単な Powershell スクリプトを組んでみました。
+
+```powershell
+$url = "https://${apimName}.azure-api.net/openai/deployments/instruct/completions?api-version=2024-02-01"
+$header = @{ 'api-key' = $key; 'Content-Type' = 'application/json' }   
+$prompt = '{ "prompt":"むかしむかしあるところに","max_tokens":1000}'
+for ($i = 0; $i -lt 2000; $i++) 
+{
+    $ret = Invoke-WebRequest -Uri $url -Method Post -Headers $header -Body $prompt
+    write-host ("{0} : {1} from {2}" -f $i, $ret.StatusCode, $ret.Headers.'x-ms-region'[0]) 
+}
+
+# 実行結果(抜粋)
+6 : 200 from Sweden Central                                                                                             
+7 : 200 from Sweden Central                                                                                             
+8 : 200 from Sweden Central                                                                                             
+9 : 200 from East US                                                                                                    
+10 : 200 from Sweden Central                                                                                            
+11 : 200 from Sweden Central                                                                                            
+12 : 200 from Sweden Central                                                                                            
+13 : 200 from Sweden Central 
+```
+
+# 
