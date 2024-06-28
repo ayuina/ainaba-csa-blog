@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure API Management 経由で Azure OpenAI Service を呼び出すパターン](./apim-aoai-pattern/)
 - [Azure Deployment Environment を使用して既存の Hub VNET に Spoke VNET を Peering することはできますか](./vnet-peering-with-ade)
 - [Azure Functions 用の Azure OpenAI 拡張機能（プレビュー） を試してみた話](./azure-functions-aoai-extension)
 - [コンテナアプリ開発と Azure サービスへのデプロイ（初学者向け）](./azure-container-for-beginners/)
