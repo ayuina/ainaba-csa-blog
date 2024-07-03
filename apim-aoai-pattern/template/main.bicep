@@ -2,6 +2,8 @@
 var region = resourceGroup().location
 var postfix = toLower(uniqueString(subscription().id, region, resourceGroup().name))
 
+var enableFacade = false
+var enableLoadbalance = true
 
 module apim 'apim.bicep' = {
   name: 'apim-core'
@@ -10,7 +12,7 @@ module apim 'apim.bicep' = {
   }
 }
 
-module facades_chatcomp 'facade.bicep' = {
+module facades_chatcomp 'facade.bicep' = if(enableFacade) {
   name: 'facade-chatcomp'
   dependsOn: [apim]
   params: {
@@ -26,7 +28,7 @@ module facades_chatcomp 'facade.bicep' = {
   }
 }
 
-module facades_completion 'facade.bicep' = {
+module facades_completion 'facade.bicep' = if(enableFacade) {
   name: 'facade-completion'
   dependsOn: [apim]
   params: {
@@ -42,7 +44,7 @@ module facades_completion 'facade.bicep' = {
   }
 }
 
-module facades_imggen 'facade.bicep' = {
+module facades_imggen 'facade.bicep' = if(enableFacade) {
   name: 'facade-imggen'
   dependsOn: [apim]
   params: {
@@ -58,13 +60,13 @@ module facades_imggen 'facade.bicep' = {
   }
 }
 
-// module loadbalancing  'loadbalance.bicep' = {
-//   dependsOn: [apim, facade]
-//   name: 'loadbalance-pattern'
-//   params: {
-//     postfix: postfix
-//   }
-// }
+module loadbalancing  'loadbalance.bicep' = if(enableLoadbalance) {
+  dependsOn: [apim]
+  name: 'loadbalance-pattern'
+  params: {
+    postfix: postfix
+  }
+}
 
 
 // module burst  'burst.bicep' = {

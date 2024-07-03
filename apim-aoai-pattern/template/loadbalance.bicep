@@ -10,14 +10,6 @@ resource apiman 'Microsoft.ApiManagement/service@2023-05-01-preview' existing = 
     resource chatcompops 'operations' existing = {
       name: 'ChatCompletions_Create'
     }
-
-    resource compops 'operations' existing = {
-      name: 'Completions_Create'
-    }
-
-    resource imggenops 'operations' existing = {
-      name: 'ImageGenerations_Create'
-    }
   }
 }
 
@@ -35,6 +27,7 @@ module backendAoais 'aoai.bicep' = [for (region, index) in regions: {
 }]
 
 resource apimBackends 'Microsoft.ApiManagement/service/backends@2023-05-01-preview' = [for (region, index) in regions: {
+  dependsOn: [ backendAoais[index] ]
   parent: apiman
   name: 'backend-aoai-${index}-for-lb'
   properties: {
@@ -57,5 +50,15 @@ resource apimBackendPool 'Microsoft.ApiManagement/service/backends@2023-05-01-pr
         id: resourceId('Microsoft.ApiManagement/service/backends', apiman.name, 'backend-aoai-${index}-for-lb')
       }]
     }
+  }
+}
+
+resource opsPolicy 'Microsoft.ApiManagement/service/apis/operations/policies@2023-05-01-preview' = {
+  dependsOn: [apimBackendPool]
+  parent: apiman::aoaiApi::chatcompops
+  name: 'policy'
+  properties: {
+    format: 'rawxml'
+    value: loadTextContent('./loadbalance-policy.xml')
   }
 }
