@@ -1,0 +1,15 @@
+<policies>
+    <inbound>
+        <set-backend-service id="facade-chat-completion-policy" backend-id="chatcomp-backend" />
+        <authentication-managed-identity resource="https://cognitiveservices.azure.com/" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

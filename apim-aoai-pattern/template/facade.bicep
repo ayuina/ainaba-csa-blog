@@ -1,74 +1,54 @@
 param postfix string
+param name string
+param aoaiOpsName string
+param region string
+param deployName string
+param modelName string
+param modelVersion string
+param modelCapacity int
+param policy string
 
 
 resource apiman 'Microsoft.ApiManagement/service@2023-05-01-preview' existing = {
   name: 'apim-${postfix}'
+
+  resource aoaiApi 'apis' existing = {
+    name: 'openai'
+
+    resource operation 'operations' existing = {
+      name: aoaiOpsName
+    }
+  }
 }
 
-
-module chatcomp 'aoai.bicep' = {
-  name: 'chatcomp'
+module aoaimodel 'aoai.bicep' = {
+  name: name
   params: {
     postfix: postfix
-    region: 'japaneast'
-    deployName: 'gpt35t'
-    modelName: 'gpt-35-turbo'
-    modelVersion: '0613'
-    modelCapacity: 10
+    region: region
+    deployName: deployName
+    modelName: modelName
+    modelVersion: modelVersion
+    modelCapacity: modelCapacity
   }
 }
 
-resource chatcompBackend 'Microsoft.ApiManagement/service/backends@2023-05-01-preview' = {
+resource apimBackend 'Microsoft.ApiManagement/service/backends@2023-05-01-preview' = {
   parent: apiman
-  name: 'chatcomp-backend'
+  name: '${name}-backend'
   properties: {
-    title: chatcomp.name
+    title: name
     protocol: 'http'
-    url: '${chatcomp.outputs.endpoint}openai'
-  }
-} 
-
-module completion 'aoai.bicep' = {
-  name: 'completion'
-  params: {
-    postfix: postfix
-    region: 'swedencentral'
-    deployName: 'instruct'
-    modelName: 'gpt-35-turbo-instruct'
-    modelVersion: '0914'
-    modelCapacity: 10
+    url: '${aoaimodel.outputs.endpoint}openai'
   }
 }
 
-resource completionBackend 'Microsoft.ApiManagement/service/backends@2023-05-01-preview' = {
-  parent: apiman
-  name: 'completion-backend'
+resource opsPolicy 'Microsoft.ApiManagement/service/apis/operations/policies@2023-05-01-preview' = {
+  dependsOn: [aoaimodel, apimBackend]
+  parent: apiman::aoaiApi::operation
+  name: 'policy'
   properties: {
-    title: completion.name
-    protocol: 'http'
-    url: '${completion.outputs.endpoint}openai'
-  }
-} 
-
-module imggen 'aoai.bicep' = {
-  name: 'imggen'
-  params: {
-    postfix: postfix
-    region: 'australiaeast'
-    deployName: 'dalle'
-    modelName: 'dall-e-3'
-    modelVersion: '3.0'
-    modelCapacity: 1
+    format: 'rawxml'
+    value: policy
   }
 }
-
-resource imggenBackend 'Microsoft.ApiManagement/service/backends@2023-05-01-preview' = {
-  parent: apiman
-  name: 'imggen-backend'
-  properties: {
-    title: imggen.name
-    protocol: 'http'
-    url: '${imggen.outputs.endpoint}openai'
-  }
-} 
-

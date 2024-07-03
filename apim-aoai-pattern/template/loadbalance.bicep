@@ -1,10 +1,26 @@
 param postfix string
-
 var regions = [ 'australiaeast', 'japaneast', 'swedencentral']
 
 resource apiman 'Microsoft.ApiManagement/service@2023-05-01-preview' existing = {
   name: 'apim-${postfix}'
+
+  resource aoaiApi 'apis' existing = {
+    name: 'openai'
+
+    resource chatcompops 'operations' existing = {
+      name: 'ChatCompletions_Create'
+    }
+
+    resource compops 'operations' existing = {
+      name: 'Completions_Create'
+    }
+
+    resource imggenops 'operations' existing = {
+      name: 'ImageGenerations_Create'
+    }
+  }
 }
+
 
 module backendAoais 'aoai.bicep' = [for (region, index) in regions: {
   name: 'aoai-${index}-for-lb'
