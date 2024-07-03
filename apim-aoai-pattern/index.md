@@ -224,6 +224,37 @@ API Management にやらせてしまうことで、アプリケーション側�
 
 上の図のように３つのバックエンドを束ねるのであれば、Single が 3 つ、Pool が 1 つの計 4 つのバックエンドを作成することになります。
 なお本記事の執筆時点では type == Pool のバックエンドは Azure Resource Manager （REST API ないしは ARM/Bicep テンプレート）を使用して作成する必要があります。
+
+```bicep
+// 実際の Azure OpenAI の URL を指定する backend を作る
+resource backend1 'Microsoft.ApiManagement/service/backends@2023-05-01-preview' = {
+  parent: apimanagements
+  name: 'backend-aoai-1-for-lb'
+  properties: {
+    title: 'backend-aoai-1-for-lb'
+    type: 'Single'
+    protocol: 'http'
+    url: 'https://your-account-name.openai.azure.com/openai'
+  }
+}
+// 上記を束ねるプールを作る（３つのバックエンドをラウンドロビン）
+resource apimBackendPool 'Microsoft.ApiManagement/service/backends@2023-05-01-preview' =  {
+  parent: apiman
+  name: 'backend-pool-for-lb'
+  properties: {
+    title: 'backend-pool-for-lb'
+    type: 'Pool'
+    pool: {
+        services: [
+            { id: backend1.id }
+            { id: backend2.id }
+            { id: backend3.id }
+        ]
+    }
+  }
+}
+```
+
 下図のように Azure Portal では作成状況だけは確認できますが、URLにはダミー（？）の値が表示されており、編集しようとするとエラーが表示される状態になりますので、編集などはしない方がよいでしょう。
 
 ![alt text](./images/loadbalance-single-and-pool-backend.png)
@@ -242,7 +273,7 @@ API Management にやらせてしまうことで、アプリケーション側�
 設定が終わったら API Management のエンドポイントに向けて何回か Chat Completion を呼び出してみて応答を取得します。
 この際の HTTP レスポンス ヘッダーを確認すると `x-ms-region` というヘッダーにリージョンが記載されています。
 これはバックエンド側で実際に呼び出された Azure OpenAI が返してきているリージョンですので、
-API Management を呼び出すたびに値が変わることが確認できます
+API Management を呼び出すたびに値が変わることが確認できます。
 
 ```bash
 HTTP/1.1 200 OK
@@ -293,6 +324,98 @@ Kusto クエリを使用してログを確認することで、単一の API Man
 
 ![burst pattern](./images/busrt-pattern.png)
 
+これを実現したい場合は前述の API Management 負荷分散プールに加えて、バックエンドの
+[サーキット ブレーカー](https://learn.microsoft.com/ja-jp/azure/api-management/backends?tabs=bicep)を組み合わせることが可能です。
+メインとなるバックエンドでは 429 エラーが発生したときにサーキットブレーカーが発動するようにしておき、メインとサブのバックエンドと束ねる負荷分散プールを構成します。
+負荷分散のアルゴリズムとしてはラウンドロビンでは意味がないので、メインとサブで優先度を変えてあげます。
+
+```bicep
+// サーキットブレーカーを指定したバックエンド（５分間に３回以上 429 が発生したら発動、１分間は使用しない）
+resource mainBackend 'Microsoft.ApiManagement/service/backends@2023-05-01-preview' = {
+  parent: apimanagements
+  name: 'main-backend'
+  properties: {
+    title: 'main-backend'
+    type: 'Single'
+    protocol: 'http'
+    url: 'https://your-account-name.openai.azure.com/openai'
+    circuitBreaker: {
+      rules: [
+        { 
+          name: 'openAiBreakerRule'
+          failureCondition: {
+            count: 3
+            interval: 'PT5M'
+            statusCodeRanges: [
+              { min:429, max:429 }
+            ]
+          }
+          tripDuration: 'PT1M'
+        }
+      ]
+    }
+  }
+}
+// メインとサブで優先度をずらしたプールを作って束ねる
+resource apimBackendPool 'Microsoft.ApiManagement/service/backends@2023-05-01-preview' =  {
+  parent: apiman
+  name: 'backend-pool-for-burst'
+  properties: {
+    title: 'backend-pool-for-burst'
+    type: 'Pool'
+    pool: {
+        services: [
+            { 
+                id: mainBackend.id 
+                priority: 1
+            }
+            { 
+                id: subBackend.id 
+                priority: 2
+            }
+        ]
+    }
+  }
+}
+```
+
+負荷分散の場合と同様にオペレーションレベルのポリシーでバックエンドプールを指定してあげればよいことになります。
+この状態で実際に API Management 経由で繰り返し呼び出してやれば OK です。
+消費するトークン量などを調整してうまくメイン側が 429 エラーが出るようにしてやると、３回失敗したのちにサブリージョンに切り替わります。
+
+```bash
+264 : 200 from Sweden Central                                                                                           
+265 : 200 from Sweden Central                                                                                           
+266 : 200 from Sweden Central                                                                                           
+267 : 200 from Sweden Central                                                                                           
+268 : 200 from Sweden Central                                                                                           
+269 : 200 from Sweden Central                                                                                           
+270 : 200 from Sweden Central                                                                                           
+271 : 200 from Sweden Central                                                                                           
+272 : 200 from Sweden Central                                                                                           
+error                                                                                                                   
+error                                                                                                                   
+error                                                                                                                   
+276 : 200 from East US                                                                                                  
+277 : 200 from East US                                                                                                  
+278 : 200 from East US        
+```
+
+Application Insights でログを取っているのでそちらも見てみましょう。
+ちょっと読み取りにくいのですが、
+- （図中オレンジ）通常は swedencentral リージョンから正常に（200）レスポンスが得られています。１分間に１０回くらいです
+- （図中の紺色）ただタイミングによっては 429 エラーが３回程度観測されています
+- （図中の青色）その後は eastus リージョンを使用していますが、１分程度たつとまた swedencentral を使い始めます
+
+![alt text](./images/burst-circuit-breaker.png)
+
+割とあっさり実現できているのですが、難点としては上記の設定のように「一定回数のエラーが発生してから」切り替わるということです。
+一般的なベストプラクティスに従ってクライアントがリトライ実装を行っていれば問題ないとは思いますが、
+そのリトライも API Management で完結させたい場合は後述の `retry` ポリシーと組み合わせるとよいでしょう。
+
+## （別解）メインのデプロイでクォータが不足したら別のリージョンも使う（バースト）
+
+こちらは以前から利用できていた方式になりますが、
 API Management がエラー時のリトライを行う場合には、`backend` policy で 
 [retry](https://learn.microsoft.com/ja-jp/azure/api-management/retry-policy)
 ポリシーを利用します。
@@ -304,7 +427,7 @@ API Management がエラー時のリトライを行う場合には、`backend` p
 ```xml
 <!--最初にメインのバックエンドを指定-->
 <inbound>
-    <set-backend-service id="instruct-backend-policy" backend-id="completion-backend" />
+    <set-backend-service id="instruct-backend-policy" backend-id="main-backend" />
     <authentication-managed-identity resource="https://cognitiveservices.azure.com/" />
 </inbound>
 <backend>
@@ -313,7 +436,7 @@ API Management がエラー時のリトライを行う場合には、`backend` p
         <choose>
             <!-- １回目が失敗した場合には何らかの Body が存在するので、その場合はサブのバックエンドに切り替え -->
             <when condition="@(context.Response.Body != null)">
-                <set-backend-service id="sub-instruct-backend-policy" backend-id="completion-backend-sub" />
+                <set-backend-service id="sub-instruct-backend-policy" backend-id="sub-backend" />
             </when>
         </choose>
         <!-- All API レベルの backend ポリシーを retry で上書きしてしまうため、明示的に転送ポリシーを指定 -->
@@ -322,15 +445,15 @@ API Management がエラー時のリトライを行う場合には、`backend` p
 </backend>
 ```
 
-期待する挙動としては、大半のリクエストはメイン側に転送されるが、メイン側のクォータ制限に抵触した一部のリクエストのみがサブに転送される、というものです。
-モデルのデプロイメントに指定したクォータや、実際に生成されるプロンプト、max_token パラメタ等のバランスにもよりますが、うまくいくと以下のような結果が得られます。
-アプリケーション マップだとどちらかのバックエンドに偏っていることくらいしかわからないのですが、
-ログから 1 分間隔で転送先（target）の件数をカウントしてみるとわかりやすいでしょう。
+こちらで実施した結果も可視化してみると以下のようになります。
 棒グラフのオレンジの方がメインリージョン（swedencentral）で、おおむね 1 分間に 9 件程度は捌けるのですが、それ以上のリクエストはサブリージョン（eastus）の方にリクエストが転送されていることがわかります。
 
 |アプリケーション マップ|ログから生成したグラフ|
 |---|---|
 |![alt text](./images/burst-aoai-appmap.png)|![alt text](./images/burst-aoai-log.png)|
+
+この方法の難点はサーキットブレーカーが存在しないため、クオータを消費しきってしまい 429 エラーが発生している最中でも必ず１回はメインリージョンにリクエストが発生し、１度エラーになってからサブリージョン呼び出しにフォールバックすることです。
+切り替えの実装自体は前述のサーキットブレーカー方式の方が簡単ですので、そのバックエンドプールに対して 429 時にリトライする方式を組み合わせるのが良さそうです。
 
 ### （参考）Powershell で AOAI を呼び出すスクリプト
 

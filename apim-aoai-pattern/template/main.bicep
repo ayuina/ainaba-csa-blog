@@ -3,7 +3,8 @@ var region = resourceGroup().location
 var postfix = toLower(uniqueString(subscription().id, region, resourceGroup().name))
 
 var enableFacade = false
-var enableLoadbalance = true
+var enableLoadbalance = false
+var enableBurst = true
 
 module apim 'apim.bicep' = {
   name: 'apim-core'
@@ -69,10 +70,10 @@ module loadbalancing  'loadbalance.bicep' = if(enableLoadbalance) {
 }
 
 
-// module burst  'burst.bicep' = {
-//   dependsOn: [apim, facade, loadbalancing]
-//   name: 'burst-pattern'
-//   params: {
-//     postfix: postfix
-//   }
-// }
+module burst  'burst.bicep' = if(enableBurst) {
+  dependsOn: [apim]
+  name: 'burst-pattern'
+  params: {
+    postfix: postfix
+  }
+}
