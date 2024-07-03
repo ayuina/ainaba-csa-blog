@@ -1,0 +1,24 @@
+<policies>
+    <inbound>
+        <set-backend-service id="burst-completion-policy" backend-id="completion-backend" />
+        <authentication-managed-identity resource="https://cognitiveservices.azure.com/" />
+    </inbound>
+    <backend>
+        <retry condition="@(context.Response.StatusCode == 429)" count="1" interval="0">
+            <choose>
+                <!-- １回目が失敗した場合には何らかの Body が存在するので、その場合はサブのバックエンドに切り替え -->
+                <when condition="@(context.Response.Body != null)">
+                    <set-backend-service id="sub-instruct-backend-policy" backend-id="completion-backend-sub" />
+                </when>
+            </choose>
+            <!-- All API レベルの backend ポリシーを retry で上書きしてしまうため、明示的に転送ポリシーを指定 -->
+            <forward-request buffer-request-body="true" />
+        </retry>
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

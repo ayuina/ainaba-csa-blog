@@ -1,0 +1,23 @@
+<policies>
+    <inbound>
+        <return-response>
+            <set-status code="400" reason="Bad Request" />
+            <set-body>{
+                "error": {
+                    "code": "OperationNotSupported",
+                    "message": "Your request operation is not supported"
+                }
+            }
+            </set-body>
+        </return-response>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
