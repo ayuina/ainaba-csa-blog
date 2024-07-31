@@ -1,10 +1,11 @@
 
-var region = resourceGroup().location
-var postfix = toLower(uniqueString(subscription().id, region, resourceGroup().name))
+param region string = resourceGroup().location
 
-var enableFacade = false
-var enableLoadbalance = false
-var enableBurst = true
+param enableFacade bool = false
+param enableLoadbalance bool = false
+param enableBurst bool = false
+
+var postfix = toLower(uniqueString(subscription().id, region, resourceGroup().name))
 
 module apim 'apim.bicep' = {
   name: 'apim-core'
@@ -13,51 +14,11 @@ module apim 'apim.bicep' = {
   }
 }
 
-module facades_chatcomp 'facade.bicep' = if(enableFacade) {
-  name: 'facade-chatcomp'
+module facade 'facade.bicep' = if(enableFacade) {
   dependsOn: [apim]
+  name: 'facade-pattern'
   params: {
-    name: 'chatcomp'
-    aoaiOpsName: 'ChatCompletions_Create'
-    postfix: postfix    
-    region: 'japaneast'
-    deployName: 'gpt35t'
-    modelName: 'gpt-35-turbo'
-    modelVersion: '0613'
-    modelCapacity: 10
-    policy: loadTextContent('./facade-chatcomp-policy.xml')
-  }
-}
-
-module facades_completion 'facade.bicep' = if(enableFacade) {
-  name: 'facade-completion'
-  dependsOn: [apim]
-  params: {
-    name: 'completion'
-    aoaiOpsName: 'Completions_Create'
-    postfix: postfix    
-    region: 'swedencentral'
-    deployName: 'instruct'
-    modelName: 'gpt-35-turbo-instruct'
-    modelVersion: '0914'
-    modelCapacity: 10
-    policy: loadTextContent('./facade-completion-policy.xml')
-  }
-}
-
-module facades_imggen 'facade.bicep' = if(enableFacade) {
-  name: 'facade-imggen'
-  dependsOn: [apim]
-  params: {
-    name: 'imggen'
-    aoaiOpsName: 'ImageGenerations_Create'
     postfix: postfix
-    region: 'australiaeast'
-    deployName: 'dalle'
-    modelName: 'dall-e-3'
-    modelVersion: '3.0'
-    modelCapacity: 1
-    policy: loadTextContent('./facade-imggen-policy.xml')
   }
 }
 
@@ -68,7 +29,6 @@ module loadbalancing  'loadbalance.bicep' = if(enableLoadbalance) {
     postfix: postfix
   }
 }
-
 
 module burst  'burst.bicep' = if(enableBurst) {
   dependsOn: [apim]

@@ -480,12 +480,124 @@ for ($i = 0; $i -lt 2000; $i++)
 13 : 200 from Sweden Central 
 ```
 
-# 複数のアプリやユーザーが Azure OpenAI を共有する
+# 複数のアプリ／開発者で Azure OpenAI を共有する
 
 ここまではバックエンド側を単一の API Management に束ねて１つに見せるアプローチでしたが、
 ここからは Azure OpenAI 互換に仕立てた API Management のフロント側で、
 様々アプリケーションやユーザーが共有するパターンについて紹介していきます。
 
-（執筆中）
+## シチュエーションと課題
+
+複数のアプリケーション間で Azure OpenAI サービスを共有利用したいケースとしては以下のケースが考えられます。
+
+- 固定額で支払っている PTU を複数アプリで共有することで利用率を向上したい
+- ガバナンスの観点から Azure OpenAI の利用を集中監視したい
+
+![](./images/shared-aoai.png)
+
+開発・評価フェーズや PoC の段階において複数の開発者が様々なプロンプトを試したいなど Azure OpenAI を自由に使わせたいシチュエーションなどもあるでしょう。
+この場合にも以下のようなケースでは Azure OpenAI リソースを共用して提供することも考えられます。
+（上図においてアプリのアイコンを人として読み替えるイメージ）
+
+- 各開発者に Azure サブスクリプションを払い出して利用させるためのスキームが無い
+- 開発者に Azure OpenAI の利用状況を管理・監視したい
+- １つのサブスクリプションに利用料を集約して部門やチームでコストを管理したい
+
+いずれの状況においてもキー管理と使いすぎの課題をクリアしていく必要が出てきます。
 
 
+## API キーの管理
+
+まず前提として、Azure OpenAI は各リソース単位で API キーを１つだけ提供します。
+正確にはキーは２つなのですが、これはあくまでも運用時にキーを変更する際のスワップ用に２つあるだけなので、全体で１セットという意味です。
+アプリケーションやユーザーに Azure OpenAI のキーを直接払い出して利用してもらうスタイルですと以下の課題が発生します。
+
+- 誰か１つでも漏洩すると全アプリ全ユーザーに影響してしまう
+- キー変更時には全アプリ全ユーザーが同時に変更するため調整が大変
+
+API Management は API や 製品に対する
+[サブスクリプション](https://learn.microsoft.com/ja-jp/azure/api-management/api-management-subscriptions)
+という機能があるため、フロントエンド側のアプリやユーザー個別にキーを払い出し管理することが可能です。
+
+### 集中管理型のキーの払い出し
+
+API Management の管理者であれば Azure Portal からサブスクリプションを作成することが可能です。
+ここで生成された API キーをアプリケーション開発者に通達してあげればよいわけです。
+
+![apim-subscriptions](./images/apim-subscriptions.png)
+
+### 開発者セルフサービス型のキー管理
+
+この方法はキーのライフサイクル管理が API Management の管理者側になりますので、開発者からキーの発行依頼や変更依頼を受けて作業することになります。
+対象となるアプリや開発者の数が少ない場合はまだいいのですが、数が増えてくると運用の手間やタイムラグが馬鹿になりません。
+この場合は [API Management 開発者ポータル](https://learn.microsoft.com/ja-jp/azure/api-management/developer-portal-overview) 
+の機能を利用して、サブスクリプションの作成と変更をアプリ開発者自身でできるようにしてあげるとよいでしょう。
+
+![apim-devportal-subscription](./images/apim-devportal-subscription.png)
+
+API Management で管理される API と 製品、それらに対するサブスクリプションの作成権限は、API Management のユーザー／グループ／製品の関連付けにて決まります。
+OpenAI に限らない話ですが、社内の API 活用を促進するにしても何らかのセキュリティ制限は必要になることが多いかと思います。
+誰に何をどの程度使ってもらいたいのか？を定めて設定に落とし込むとよいでしょう。
+
+![apim-access-control](./images/apim-access-control.png)
+
+なお API Management 自体はこのアクセス制御の基盤となる ID Provider 機能として非常にシンプルなユーザーのメールアドレスとパスワード （Basic 認証）の機能しか持っていません。
+このため Azure Active Directory（現 Microsoft Entra ID）および Azure Active Directory B2C といったより高度な機能を持った外部 IDP を活用するとよいでしょう。
+
+### API キーをセットする HTTP ヘッダー
+
+API Mangement に登録された API は、既定では `Ocp-Apim-Subscription-Key` という HTTP ヘッダーにサブスクリプションキーをセットすることで利用可能になります。
+通常の Azure OpenAI サービスは `api-key` HTTP ヘッダーを使用しますので、そちらと合わせることで各アプリケーションが使用する SDK と互換性を保ちやすくなるでしょう。
+
+![apim-api-key-header](./images/apim-api-key-header.png)
+
+なおこの設定は Azure OpenAI サービスのインポート機能を使用して API を登録した場合には自動的に設定されます。
+独自に登録した際などは既定値のままなので注意しましょう。
+
+### アプリや開発者の利用状況の管理
+
+開発者やアプリごとにサブスクリプションが異なることで、API Management は誰が（どのアプリが）アクセスしてきたかが判定できるわけです。
+この情報は上記で設定したような Log Analytics でも確認できますし [API 分析](https://learn.microsoft.com/ja-jp/azure/api-management/howto-use-analytics) を使用しても確認できます。
+
+![apim-monitoring](./images/apim-monitoring.png)
+
+なお上図には「ユーザー」というタブがありますが、これは必ずしもアプリを利用する「エンドユーザー」を表すとは限らないことに注意が必要です。
+API Management における「ユーザー」は開発者ポータルでサブスクリプションを払い出したユーザーを意味します。
+あるいは Azure Portal で管理者がサブスクリプション作成時に紐付けたユーザーです。
+つまり通常はアプリを開発した開発者を表すことになります。
+
+## 使いすぎを防ぐクォータ制限
+
+Azure OpenAI リソースを複数のユーザーやアプリで共有する場合のもう１つの課題は、利用量の多いアプリやユーザーがクォータを使いすぎてしまって他のユーザーやアプリが使えなくなる（429 エラーが頻発する）ことがあります。
+基本的に API Management はリクエストをバックエンドの Azure OpenAI に転送するだけですので、同じ問題が発生します。
+この場合の対策として考えられるのは、API Management レベルでのスロットリングと利用状況の監視でしょう。
+
+### トークンベースのスロットリング
+
+従来 API Management はリクエスト回数ベースのスロットリング
+（[rate-limit-by-key ポリシー](https://learn.microsoft.com/ja-jp/azure/api-management/rate-limit-policy)）
+に対応していましたが、Azure OpenAI は消費したトークンベースでスロットリングがかかりますので、基準とするメトリックにズレが発生します。
+このようなケースでは新しく追加された
+[azure-openai-token-limit ポリシー](https://learn.microsoft.com/ja-jp/azure/api-management/azure-openai-token-limit-policy)
+を利用することが可能です。
+このポリシーを利用してユーザーやアプリを表す「サブスクリプション」、あるいは接続元の IP アドレス単位で利用上限を設定することで、Azure OpenAI サービス本体のスロットリングが発生する前に制限をかけることが可能になります。
+
+```xml
+<inbound>
+  <azure-openai-token-limit 
+    counter-key="@(context.Subscription.Id)" tokens-per-minute="2000" estimate-prompt-tokens="false" />
+</inbound>
+```
+
+![apim-token-base-rate-limit](./images/apim-token-base-rate-limit.png)
+
+### トークン利用状況の監視
+
+スロットリングで保護するのと同時に、そもそも誰がどれくらい使っているのかを確認したいですよね。
+この実績となる利用情報が無いと、上記で設定したトークン上限が多すぎるのか少なすぎるのかがわかりません。
+最初は適当に（？）設定するかもしれませんが、利用状況を見つつ調整していくことになるでしょう。
+
+サブスクリプションやクライアント IP アドレス単位でのトークン利用料を監視したい場合には
+[azure-openai-emit-token-metric ポリシー](https://learn.microsoft.com/ja-jp/azure/api-management/azure-openai-emit-token-metric-policy)
+を利用できます。
+こちらを設定することで Application Insights のメトリック画面、あるいは `customMetrics` テーブルにトークン数が指定したディメンジョンとともに出力されるようになるとのことです。

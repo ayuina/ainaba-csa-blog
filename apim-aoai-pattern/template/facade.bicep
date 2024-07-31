@@ -1,54 +1,46 @@
 param postfix string
-param name string
-param aoaiOpsName string
-param region string
-param deployName string
-param modelName string
-param modelVersion string
-param modelCapacity int
-param policy string
 
-
-resource apiman 'Microsoft.ApiManagement/service@2023-05-01-preview' existing = {
-  name: 'apim-${postfix}'
-
-  resource aoaiApi 'apis' existing = {
-    name: 'openai'
-
-    resource operation 'operations' existing = {
-      name: aoaiOpsName
-    }
-  }
-}
-
-module aoaimodel 'aoai.bicep' = {
-  name: name
+module facades_chatcomp 'facade-operation.bicep' = {
+  name: 'facade-chatcomp'
   params: {
+    name: 'chatcomp'
+    aoaiOpsName: 'ChatCompletions_Create'
+    postfix: postfix    
+    region: 'japaneast'
+    deployName: 'gpt35t'
+    modelName: 'gpt-35-turbo'
+    modelVersion: '0613'
+    modelCapacity: 10
+    policy: loadTextContent('./facade-chatcomp-policy.xml')
+  }
+}
+
+module facades_completion 'facade-operation.bicep' = {
+  name: 'facade-completion'
+  params: {
+    name: 'completion'
+    aoaiOpsName: 'Completions_Create'
+    postfix: postfix    
+    region: 'swedencentral'
+    deployName: 'instruct'
+    modelName: 'gpt-35-turbo-instruct'
+    modelVersion: '0914'
+    modelCapacity: 10
+    policy: loadTextContent('./facade-completion-policy.xml')
+  }
+}
+
+module facades_imggen 'facade-operation.bicep' = {
+  name: 'facade-imggen'
+  params: {
+    name: 'imggen'
+    aoaiOpsName: 'ImageGenerations_Create'
     postfix: postfix
-    region: region
-    deployName: deployName
-    modelName: modelName
-    modelVersion: modelVersion
-    modelCapacity: modelCapacity
-  }
-}
-
-resource apimBackend 'Microsoft.ApiManagement/service/backends@2023-05-01-preview' = {
-  parent: apiman
-  name: '${name}-backend'
-  properties: {
-    title: name
-    protocol: 'http'
-    url: '${aoaimodel.outputs.endpoint}openai'
-  }
-}
-
-resource opsPolicy 'Microsoft.ApiManagement/service/apis/operations/policies@2023-05-01-preview' = {
-  dependsOn: [aoaimodel, apimBackend]
-  parent: apiman::aoaiApi::operation
-  name: 'policy'
-  properties: {
-    format: 'rawxml'
-    value: policy
+    region: 'australiaeast'
+    deployName: 'dalle'
+    modelName: 'dall-e-3'
+    modelVersion: '3.0'
+    modelCapacity: 1
+    policy: loadTextContent('./facade-imggen-policy.xml')
   }
 }
