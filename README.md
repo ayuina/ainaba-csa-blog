@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [みんな大好き Excel ファイルを無人実行なサーバーサイドアプリから操作したい](./automate-excelfile-with-graphapi)
 - [Azure API Management 経由で Azure OpenAI Service を呼び出すパターン](./apim-aoai-pattern/)
 - [Azure Deployment Environment を使用して既存の Hub VNET に Spoke VNET を Peering することはできますか](./vnet-peering-with-ade)
 - [Azure Functions 用の Azure OpenAI 拡張機能（プレビュー） を試してみた話](./azure-functions-aoai-extension)
