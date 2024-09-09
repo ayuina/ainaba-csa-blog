@@ -118,9 +118,15 @@ dotnet add package Azure.Identity
 - Microsoft.Graph 5.56.1
 - Azure Identity 1.12.0
 
-## Graph SDK を使用した Sharepoint 上のファイル操作
+
+# Graph SDK を使用した Sharepoint ドキュメントライブラリ上のファイル操作
 
 ここからは楽しくプログラミングしていきます。
+まずは分かりやすいところから、既にドキュメントライブラリに保存済みのファイルを操作していきます。
+この章では Excel ファイル依存の部分は無いですが、後で使用しますので新規の xlsx ファイルを作成しておき、いくつかのセルに値を入れておいてください。
+
+## クライアントアプリの認証情報
+
 まず先ほど取得したサービスプリンシパルの情報を環境変数に設定しておきます。
 
 ```powershell
@@ -139,6 +145,8 @@ var cred = new EnvironmentCredential();
 // もしくは明示的に読み込んで以下のようにしても良い
 var cred = new ClientSecretCredential(tenantid, clientid, secret);
 ```
+
+## ファイル情報の取得
 
 ここからは Files API の操作になります。
 
@@ -197,10 +205,37 @@ await pdfContent!.CopyToAsync( File.OpenWrite(pdffile) );
 
 ちなみにこの PDF でダウンロードする方法はレイアウトなどが細かく指定できないのですが、どーもこれは印刷時の設定などを反映するようですので、見た目にこだわりたい方はブラウザ上で Excel ファイルの印刷を確認してみるとよいでしょう。
 
-## Excel ファイルから値の読み込み
+## 空の Excel ファイルの新規作成
+
+作成・保存済みの Excel ファイルの中身の操作はこのあと紹介しますが、[Excel ファイルの新規作成](https://learn.microsoft.com/ja-jp/graph/api/driveitem-put-content?view=graph-rest-1.0&tabs=http#example-upload-a-new-file)ももちろん可能です。
+ドキュメント上では C# SDK を使用したサンプルコードが提示されていませんが、先ほどのコンテンツのダウンロード `Content.GetAsync` ではなく、アップロード `Content.PusAsync` をすればよいようです。
+このメソッドでは MimeType を指定する方法が無いのでどうやるのかと思ったら、拡張子が xlsx の空のファイルをアップロードすると Excel ファイルが出来上がるみたいです。いいのかこれで・・・。
+
+```csharp
+// 空の中身と新規作成するファイル名
+using var buffer = new MemoryStream();
+string path = "yourExcelFilename.xlsx";
+
+// アップロード
+var newContent = client.Drives[driveid].Root.ItemWithPath(path).Content;
+var result = await newContent.PutAsync(buffer);
+
+// Drive Item の ID が振られるので控えておく
+var ret = new { 
+    Name = result.Name, 
+    Id = result.Id, 
+    MimeType = result.File!.MimeType, 
+    OdataType = result.OdataType, 
+    WebUrl = result.WebUrl };
+```
+
+# Graph SDK を使用した Sharepoint ドキュメントライブラリ上の Excel ファイルのデータ操作
 
 さて佳境に入ってきました。
 ここまでの処理でファイル情報は取れてますので、ここからが Excel ファイル内の操作になります。
+
+## Excel ファイルから値の読み込み
+
 まずは [Workbook 内部の特定の Worksheet と Range を取得](https://learn.microsoft.com/ja-jp/graph/api/worksheet-range?view=graph-rest-1.0&tabs=http) します。
 
 > 注：ドキュメントではアプリケーションへのアクセス許可が **「サポートされていません」** となっているのですが、動作するには動作したので引き続き紹介します。
@@ -265,7 +300,7 @@ ppp                 # B3 の値（文字列）
 ```
 
 数式がとりたい場合は `Range.Values` プロパティではなく、`Range.Formulas` プロパティを処理する必要があります。
-` var rows = range1!.Formulas as UntypedArray; `
+`var rows = range1!.Formulas as UntypedArray;`
 のように変更して同様にループを回すと、以下の結果が得られます。
 
 ```powershell
@@ -280,7 +315,7 @@ ppp
 ```
 
 書式がとりたい場合には `Range.NumberFormat` プロパティを処理する必要があります。
-` var rows = range1!.NumberFormat as UntypedArray; `
+`var rows = range1!.NumberFormat as UntypedArray;`
 のように変更して同様にループを回すと、以下の結果が得られます。
 
 ```powershell
