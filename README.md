@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Microsoft Graph API に Managed ID でアクセスする Functions アプリ](./msgraph-client-on-azure/)
 - [みんな大好き Excel ファイルを無人実行なサーバーサイドアプリから操作したい](./automate-excelfile-with-graphapi)
 - [Azure API Management 経由で Azure OpenAI Service を呼び出すパターン](./apim-aoai-pattern/)
 - [Azure Deployment Environment を使用して既存の Hub VNET に Spoke VNET を Peering することはできますか](./vnet-peering-with-ade)
