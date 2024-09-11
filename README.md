@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [C# 分離ワーカーモデルを使用する Azure Functions のログについて](./azure-functions-logging-dotnet-isolated/)
 - [Microsoft Graph API に Managed ID でアクセスする Functions アプリ](./msgraph-client-on-azure/)
 - [みんな大好き Excel ファイルを無人実行なサーバーサイドアプリから操作したい](./automate-excelfile-with-graphapi)
 - [Azure API Management 経由で Azure OpenAI Service を呼び出すパターン](./apim-aoai-pattern/)
