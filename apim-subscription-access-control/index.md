@@ -245,7 +245,8 @@ Azure サブスクリプションが信頼するテナントと、API を利用�
 ### 開発者も管理者もユーザー登録は出来ない（ことが多い）
 
 こちらのケースではユーザーはそもそも Entra ID で管理されており、その多くの場合は組織の IT 部門などで管理されていることでしょう。
-つまり開発者セルフサービスどころか API Management 管理者であってもユーザー登録自体は出来ず、既存のユーザーアカウントを使用することになります。
+つまり開発者セルフサービスどころか API Management 管理者であってもユーザー登録自体は出来ないことがほとんどでしょう。
+Entra ID に限らず外部 IdP を使用するということは、そこで管理されている既存のユーザーアカウントを使用することになります。
 当該テナントに開発者のユーザーアカウントが存在しないならば、ローカルユーザーとして登録するなりゲストユーザーとして招待するなりが必要ですので、その場合は管理者に問い合わせるなど組織内の正規の手続きに従ってください。
 
 ### Entra ID アカウントを使用したサインアップ
@@ -326,7 +327,7 @@ Azure API Management に登録された API は基本的にサブスクリプシ
 - セルフサービスによるサインアップを許可するのか
 - サブスクリプションキーの作成に承認は必要か
 
-## 補足
+## 補足：サブスクリプション キー 以外の API 保護
 
 本記事記載の内容はあくまでも「開発者ポータル」を利用する際の認証・認可と、そこで作成されるサブスクリプション キーの管理についてのみ記載しています。
 実際にクライアントアプリが API を呼び出す、すなわち API Gateway を経由して通信が行われる場合の保護機構には、サブスクリプション キー以外にも様々なアプローチが存在します。
@@ -339,3 +340,93 @@ Azure API Management に登録された API は基本的にサブスクリプシ
 - etc...
 
 実際に API Management を利用して API をほぼする場合には、これらその他の方式と組み合わせることも合わせてご検討ください。
+
+## 補足：IaC を使用したサブスクリプション作成
+
+API の呼び出し元が Azure App Service 等の Azure リソース上で動作するようなケースでは、サブスクリプション キーの発行先はアプリの開発者よりも、各環境の構成情報や Key Vault 等の構成管理サービスなどに直接出力してしまった方が安全です。
+サブスクリプション キーのような共有キーは何よりも漏洩リスクの危険が危ないので、そもそも知ってる人が少ないに越したことはありません。
+まあそういう場合には Managed ID を使うべきではあるのですが、こういうやり方もありますよということで。
+
+Azure の IaC : Infrastructure as Code の技術である ARM テンプレートないしは Bicep が使用できるのであれば、リソースのデプロイとともに製品、グループ、サブスクリプションなどを作成することが可能です。
+実はこの製品、グループ、サブスクリプションは [API Management の子や孫にあたるリソース](https://learn.microsoft.com/ja-jp/azure/templates/microsoft.apimanagement/service?pivots=deployment-language-bicep)なので、リファレンスにも記載されています。
+
+以下は Bicep のサンプルです。
+
+```bicep
+// API Management （参照）
+resource apiman 'Microsoft.ApiManagement/service@2023-09-01-preview' existing = {
+  name: 'yourApiManagementName'
+}
+
+// API Management に登録された API （参照）
+resource api1 'Microsoft.ApiManagement/service/apis@2023-09-01-preview' existing = {
+  parent: apiman
+  name: 'yourApiName'
+}
+
+// グループの作成
+resource group 'Microsoft.ApiManagement/service/groups@2023-09-01-preview' = {
+  parent: apiman
+  name: 'aidevelopers'
+  properties:{
+    displayName: 'AI Developers'
+    description: 'Developers who are interested in AI'
+    type: 'custom'
+  }
+}
+
+// 製品の作成
+resource product 'Microsoft.ApiManagement/service/products@2023-09-01-preview' = {
+  parent: apiman
+  name: 'ai-apis-product'
+  properties:{
+    displayName: 'Azure AI APIs Product'
+    description: 'This product contains Azure OpenAI etc...'
+    approvalRequired: true
+    subscriptionRequired: true
+    state: 'published'
+  }
+}
+
+// 製品に API を束ねる
+resource productApiLink 'Microsoft.ApiManagement/service/products/apiLinks@2023-09-01-preview' = {
+  parent: product
+  name: 'api-link'
+  properties:{
+    apiId: api1.id
+  }
+}
+
+// 製品へのアクセスを許可するグループ
+resource productGroupLink 'Microsoft.ApiManagement/service/products/groupLinks@2023-09-01-preview' = {
+  parent: product
+  name: 'aidevelopers-link'
+  properties:{
+    groupId: group.id
+  }
+}
+
+// 製品を対象としたサブスクリプションの作成
+resource subscription1 'Microsoft.ApiManagement/service/subscriptions@2023-09-01-preview' = {
+  parent: apiman
+  name: 'subscriptionName'
+  properties:{
+    displayName: 'Subscription Displayname'
+    scope: product.id
+  }
+}
+
+// Azure App Service （参照）
+resource appsvc 'Microsoft.Web/sites@2022-03-01' existing = {
+  name: 'appsvcName'
+}
+
+// サブスクリプションキーの取得と App Service の設定
+resource appsettings 'Microsoft.Web/sites/config@2022-03-01' = {
+  parent: appsvc
+  name: 'appsettings'
+  properties: {
+    API_MANAGEMENT_SUBSCRIPTION_KEY: subscription1.listSecrets().primaryKey
+  }
+}
+```
