@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [.NET Framework アプリケーションを .NET (Core) へ移行する？しない？](./dotnet-and-dotnetfx-runtime/)
 - [API Management サブスクリプション キーの払い出し（開発者の認証やアクセス制御など）](./apim-subscription-access-control)
 - [C# 分離ワーカーモデルを使用する Azure Functions のログについて](./azure-functions-logging-dotnet-isolated/)
 - [Microsoft Graph API に Managed ID でアクセスする Functions アプリ](./msgraph-client-on-azure/)
