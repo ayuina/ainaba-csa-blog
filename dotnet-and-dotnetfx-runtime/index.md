@@ -1,6 +1,6 @@
 ---
 layout: default
-title: .NET Framework と .NET (Core) で作るアプリケーションのフレームワークと実行環境
+title: .NET Framework アプリケーションの .NET (Core) へ移行するべきか否か
 ---
 
 # はじめに
