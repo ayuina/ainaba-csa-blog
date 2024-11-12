@@ -209,6 +209,8 @@ AI らしさのかけらもありませんが、これはまず下準備とい�
 
 ### テンプレート エンジンを使用して呼び出す
 
+{% raw %}
+
 プロンプト テンプレートの中で 2 重中括弧 `{{}}` を使用することで、プラグインの出力結果をプロンプトに埋め込むことが可能です。
 
 ```csharp
@@ -217,6 +219,8 @@ var promptText = """
 
 今日の日付 : {{myplugin.get_today}}
 """;
+
+{% endraw %}
 
 var kernel = builder.Build();
 var ret3 = await kernel.InvokePromptAsync(promptText);
