@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Azure OpenAI Service で Chat Completion する 3 種の API](./call-aoai-api/)
 - [Semantic Kernal (C#) からプラグインを呼び出す方法](./semantic-kernel-plugin/)
 - [.NET Framework アプリケーションを .NET (Core) へ移行する？しない？](./dotnet-and-dotnetfx-runtime/)
 - [API Management サブスクリプション キーの払い出し（開発者の認証やアクセス制御など）](./apim-subscription-access-control)
