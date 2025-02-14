@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Semantic Kernel のグループチャットに Azure AI Agent を参加させる
+title: Semantic Kernel と Azure AI Agent Service で作るエージェントの比較と組み合わせ
 ---
 
 # はじめに
