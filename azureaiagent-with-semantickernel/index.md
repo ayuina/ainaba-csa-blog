@@ -417,15 +417,15 @@ var groupChat = new AgentGroupChat(tenkiAgentSK, clothesAgent)
 - 会話履歴
     - ```KernelFunction``` が使用する LLM はステートレスなので会話履歴や最新の状態等のデータがないと今どういう状況かわかりません
     - Semantic Kernel の[プロンプト テンプレート](https://learn.microsoft.com/ja-jp/semantic-kernel/concepts/prompts/prompt-template-syntax)の機能を使用して変数の値を差し込んであげる必要があります(２重中括弧)
-    - 会話履歴保持する変数の名前は ```KernelPromptTerminationStrategy``` や ```KernelPromptSelectionStrategy``` のプロパティで設定できます。
+    - 会話履歴保持する変数の名前は ```KernelFunctionTerminationStrategy``` や ```KernelFunctionSelectionStrategy``` のプロパティで設定できます。
 - エージェント選択
-    - ```KernelPromptSelectionStrategy``` は結果として **次に発言するエージェントの名前** を返す必要があります
+    - ```KernelFunctionSelectionStrategy``` は結果として **次に発言するエージェントの名前** を返す必要があります
     - このためプロンプトには会話に参加しているエージェントの名前を含め、「その名前だけを返せ、余計なことは言うな」という指示を伝えます
     - エージェントの名前はプログラム中の変数で保有していますので、[C# の文字列補完](https://learn.microsoft.com/ja-jp/dotnet/csharp/language-reference/tokens/interpolated) を使用してプロンプト内に埋め込むことができます（３重中括弧）
     - この際プロンプト テンプレートの変数埋め込み書式(２重中括弧)と競合しないように、３重中括弧を使用しています（このため ```$$$"""``` で文字列を定義）
-    - 本来このプロンプトだけで ```KernelPromptSelectionStrategy``` の要件は満たせているので ```ResultParser``` は不要です
+    - 本来このプロンプトだけで ```KernelFunctionSelectionStrategy``` の要件は満たせているので ```ResultParser``` は不要です
 - 会話の終了
-    - ```KernelPromptTerminationStrategy``` は結果として **会話を終了するか否かを表す真偽値** を返す必要があります
+    - ```KernelFunctionTerminationStrategy``` は結果として **会話を終了するか否かを表す真偽値** を返す必要があります
     - このためプロンプトでは終了か継続かを出力するように指示を与えます（```Continue``` or ```Done```）
     - 判断するために会話履歴やエージェントの情報が必要な場合には上記と同様にプロンプト内に値を埋め込んでやります
     - ```KernelFunction``` が出力するプロンプトの実行結果はあくまでもテキストですので、```ResultParse``` を使用して ```Boolean``` に変換します
