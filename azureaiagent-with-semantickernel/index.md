@@ -5,51 +5,48 @@ title: Semantic Kernel と Azure AI Agent Service で作るエージェントの
 
 # はじめに
 
-昨今 AI Agent も様々な実装方法が出てきています。
-単独の Agent であれば [Azure AI Agent Service](https://learn.microsoft.com/en-us/azure/ai-services/agents/overview) を使えると比較的シンプルに実装できるでしょう。 
-しかし複数の専門家エージェントを組み合わせたマルチエージェントシステムを考える場合、そのフレームワークに沿った方式でエージェントを実装することになります。
+昨今、AI Agent の実装方法も多様化してきました。
+単独の Agent であれば [Azure AI Agent Service](https://learn.microsoft.com/en-us/azure/ai-services/agents/overview) を利用することで比較的シンプルに実装できます。
+しかし、複数の専門家エージェントを組み合わせたマルチエージェントシステムを構築する場合、フレームワークに沿った方式でエージェントを実装することになります。
 
-では Azure AI Agent Service で作ったエージェントは単独でしか使えないのでしょうか？
-そんなことはもちろん無くて、要は Agent Framework が対応してくれてればいいわけです。
-本記事では [Semantic Kernel の Agent Framework](https://learn.microsoft.com/en-us/semantic-kernel/frameworks/agent/?pivots=programming-language-csharp) と
-Azure AI Agent Service を組み合わせてグループチャットを実現する方法を紹介したいと思います。
+では、Azure AI Agent Service で作成したエージェントは単独でしか利用できないのでしょうか？
+もちろんそんなことはなく、Agent Framework が対応していれば連携できます。
+本記事では、[Semantic Kernel の Agent Framework](https://learn.microsoft.com/ja-jp/semantic-kernel/frameworks/agent/?pivots=programming-language-csharp) と Azure AI Agent Service を組み合わせてグループチャットを実現する方法を紹介します。
 
 ![overview](./images/overview.png)
 
-なお本記事執筆時点でプレビュー状態の内容の含まれており、今後の変更で動作しなくなる可能性もありますのでご注意ください。
-
+なお、本記事執筆時点ではプレビュー段階の情報が含まれており、今後の変更によって動作しなくなる可能性がある点にご注意ください。
 
 # Azure AI Agent Service
 
-2024 年末の段階で Azure AI Agent Service の Public Preview が開始されていたのですが、AI Foundry ポータルを使用したエージェントの管理やテスト実行が出来ず、
-SDK を使用したプログラミングでゴリゴリ構築・実行してやる必要がありました。
-ステートフルな API である AI Agent Service の実用を考えると、これらの「管理ツールが無い」というのはかなり厳しいものがあると思います。
-年が明けて 2 月 7 日に AI Foundry にも AI Agent Service のサポートが組み込まれ、かなり使いやすくなったと思います。
+2024 年末に Azure AI Agent Service の Public Preview が開始されましたが、AI Foundry ポータルを使用したエージェントの管理やテスト実行はできず、
+SDK を使用してプログラミングで構築・実行する必要がありました。
+ステートフルな API である AI Agent Service の実用性を考えると、管理ツールの不在は大きな課題でした。
+年明け後の 2 月 7 日に AI Foundry に AI Agent Service のサポートが組み込まれ、使いやすさが向上しました。
 
 - [Announcing the public preview of Azure AI Agent Service](https://techcommunity.microsoft.com/blog/azure-ai-services-blog/unlocking-ai-powered-automation-with-azure-ai-agent-service/4372041)
 
-AI Foundry ポータルを使用したエージェント管理の実際の使い勝手などは [Quickstart](https://learn.microsoft.com/en-us/azure/ai-services/agents/quickstart?pivots=ai-foundry)を見ていただければと思いますが、以下の操作が GUI で出来るようになった（＝カスタムコードで実装する必要が無くなった）のは大きな進歩かなと思っています。
+AI Foundry ポータルを使用したエージェント管理の使い勝手は [Quickstart](https://learn.microsoft.com/en-us/azure/ai-services/agents/quickstart?pivots=ai-foundry) を参照してください。GUI で以下の操作ができるようになった（＝カスタムコードでの実装が不要になった）のは大きな進歩です。
 
 - Agent の作成
 - Playground を使用したお試し会話
 - 既存の Agent の設定確認や削除
 - 過去の会話履歴の確認
 
-とはいえ実際にアプリケーションに組み込むとなれば Assistants API と同様の非同期 API を駆使したプログラミングが必要になるので、その辛さは残っています。
+とはいえ、アプリケーションに組み込むには Assistants API と同様の非同期 API を使用したプログラミングが必要であり、その点は依然として課題です。
 
 ## AI Foundry を使用した AI Agent の作成
 
 詳細な手順は quickstart をご確認いただければと思いますのでここでは雰囲気だけ。
 
-[AI Foundry Portal](https://ai.azure.com) を開いて AI Project を開くと左側に `Agents` メニューがあり、新規作成ボタンや既存の Agent 一覧が表示されます。
-Azure SDK を使おうが AI Foundry でポチポチやろうがここに出てきます。
-設定内容も確認できますし、変更も削除も出来ます。
-素敵。
+[AI Foundry Portal](https://ai.azure.com) を開き、AI Project を開くと左側に `Agents` メニューがあり、新規作成ボタンや既存の Agent 一覧が表示されます。
+Azure SDK を使用しても、AI Foundry で操作しても、作成した Agent はここに表示されます。
+設定内容の確認、変更、削除も可能です。
 
 ![ai foundry portal - agents](./images/aifp-agents.png)
 
-`Playground` に行けば作成した Agent と会話することも出来ます。
-ちょっとした設定変更のたびにアプリを実行して動作検証とか怠いにも程がありますからね。
+`Playground` では、作成した Agent と会話できます。
+設定変更のたびにアプリを実行して動作検証するのは非効率なので、これは便利です。
 
 ![ai foundry portal - playground](./images/aifp-playground.png)
 
@@ -58,16 +55,14 @@ Azure SDK を使おうが AI Foundry でポチポチやろうがここに出て�
 
 ![ai foundry portal - threads](./images/aifp-threads.png)
 
-というわけで既存のツールを使用した AI Agent ならサクッと作れるようになったわけです。
+このように、既存のツールを使用することで AI Agent を簡単に作成できるようになりました。
 
 ## Azure AI Agent と対話するアプリの実装
 
 ![architecture1](./images/architecture1.png)
 
-さてエンドユーザーさん達に Agent を使ってもらうにしても Playground というわけには行かず、そこはカスタムアプリの実装が必要なわけです。
-Agent は一覧画面に出てきた ID で指定することが出来ますので、後は対話処理を実装していくことになりますね。
-
-
+エンドユーザーが Agent を利用するには、Playground ではなくカスタムアプリが必要です。
+Agent は一覧画面に表示される ID で指定し、対話処理を実装します。
 
 ```powershell
 # まずは必要な Azure SDK のパッケージを持ってきます
