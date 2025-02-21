@@ -62,8 +62,12 @@ Azure SDK を使おうが AI Foundry でポチポチやろうがここに出て�
 
 ## Azure AI Agent と対話するアプリの実装
 
+![architecture1](./images/architecture1.png)
+
 さてエンドユーザーさん達に Agent を使ってもらうにしても Playground というわけには行かず、そこはカスタムアプリの実装が必要なわけです。
 Agent は一覧画面に出てきた ID で指定することが出来ますので、後は対話処理を実装していくことになりますね。
+
+
 
 ```powershell
 # まずは必要な Azure SDK のパッケージを持ってきます
@@ -139,6 +143,9 @@ assistant :
 
 ## マルチエージェントするには？
 
+![architecture2](./images/architecture2.png)
+
+
 前述のコードを見ても分かる通り、Agent と Thread 間に依存関係がありません。
 複数の Agent で対話させたい場合は同じスレッドを別のエージェントに渡せばいいわけですね。
 
@@ -208,6 +215,8 @@ AI Agent 用のフレームワークは様々ですが、Semantic Kernel でも 
 
 まずはエージェントを 1 人作ってみましょう。
 ここでは上記の服装コーディネーターを作ってみたいと思います。
+
+![architecture3](./images/architecture3.png)
 
 ```powershell
 # まずは Semantic Kernel の必要なパッケージを取り寄せておきます。
@@ -299,6 +308,8 @@ Assistant:
 さてやっと本題です。
 Azure AI Agent Service 上には既にお天気エージェントが構築してありますので、
 Agent の ID を使用して情報を取得、Semantic Kernel で扱える Agent として参照します。
+
+![alarchitecture4](./images/architecture4.png)
 
 ```csharp
 using Microsoft.SemanticKernel.Agents.AzureAI;
@@ -393,7 +404,35 @@ var groupChat = new AgentGroupChat(tenkiAgentSK, clothesAgent)
 };
 ```
 
-（自律的と言いつつほぼ固定な動きになりますが）グループチャットを開始してみましょう。
+上記のコードは GitHub Pages を生成した際に、各 KernelFunction のプロンプトを表す [C# の生文字列リテラル](https://learn.microsoft.com/ja-jp/dotnet/csharp/programming-guide/strings/#raw-string-literals) 内部の2重引用符3重引用符が消えてしまったので、下記に画像として張っておきます。
+実際のコードを参照したい場合は [GitHub リポジトリ上の Markdown ファイル](https://ayuina.github.io/ainaba-csa-blog/azureaiagent-with-semantickernel/)をご参照ください。
+
+|エージェント選択のプロンプト|会話終了のプロンプト|
+|---|---|
+|![selection-prompt](./images/selection-prompt.png)|![termination-prompt](./images/termination-prompt.png)|
+
+
+ここでのポイントは以下のようになります。
+
+- 会話履歴
+    - ```KernelFunction``` が使用する LLM はステートレスなので会話履歴や最新の状態等のデータがないと今どういう状況かわかりません
+    - Semantic Kernel の[プロンプト テンプレート](https://learn.microsoft.com/ja-jp/semantic-kernel/concepts/prompts/prompt-template-syntax)の機能を使用して変数の値を差し込んであげる必要があります(２重中括弧)
+    - 会話履歴保持する変数の名前は ```KernelPromptTerminationStrategy``` や ```KernelPromptSelectionStrategy``` のプロパティで設定できます。
+- エージェント選択
+    - ```KernelPromptSelectionStrategy``` は結果として **次に発言するエージェントの名前** を返す必要があります
+    - このためプロンプトには会話に参加しているエージェントの名前を含め、「その名前だけを返せ、余計なことは言うな」という指示を伝えます
+    - エージェントの名前はプログラム中の変数で保有していますので、[C# の文字列補完](https://learn.microsoft.com/ja-jp/dotnet/csharp/language-reference/tokens/interpolated) を使用してプロンプト内に埋め込むことができます（３重中括弧）
+    - この際プロンプト テンプレートの変数埋め込み書式(２重中括弧)と競合しないように、３重中括弧を使用しています（このため ```$$$"""``` で文字列を定義）
+    - 本来このプロンプトだけで ```KernelPromptSelectionStrategy``` の要件は満たせているので ```ResultParser``` は不要です
+- 会話の終了
+    - ```KernelPromptTerminationStrategy``` は結果として **会話を終了するか否かを表す真偽値** を返す必要があります
+    - このためプロンプトでは終了か継続かを出力するように指示を与えます（```Continue``` or ```Done```）
+    - 判断するために会話履歴やエージェントの情報が必要な場合には上記と同様にプロンプト内に値を埋め込んでやります
+    - ```KernelFunction``` が出力するプロンプトの実行結果はあくまでもテキストですので、```ResultParse``` を使用して ```Boolean``` に変換します
+
+プロンプトの内容の通り今回の会話はほぼ固定の動きになりますが、このプロンプトを工夫することでエージェントたちが能動的に会話するように作りこむことが可能です。
+
+さて実際にグループチャットを開始してみましょう。
 
 ```csharp
 // 対話を開始
