@@ -1,0 +1,137 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"name":"csharp","languageName":"C#","aliases":["c#","cs"]},{"name":"fsharp","languageName":"F#","aliases":["f#","fs"]},{"name":"html","languageName":"HTML"},{"name":"http","languageName":"HTTP"},{"name":"javascript","languageName":"JavaScript","aliases":["js"]},{"name":"mermaid","languageName":"Mermaid"},{"name":"pwsh","languageName":"pwsh"},{"name":"value"}]}}
+
+#!pwsh
+
+#$regions = @('japaneast', 'eastus', 'swedencentral', 'global')
+$regions = az account list-locations --query [].name -o tsv
+
+Write-Host ("Getting models from {0} regions" -f $regions.Length)
+
+$idx = 1
+$regions | foreach {
+    $json = $null
+    write-host ("[{0:00}/{1:00}] Getting models for {2} " -f $idx++, $regions.Length, $_)
+    try {
+        $json = az cognitiveservices model list -l $_ 
+    } catch {
+        write-host ("Error getting models for {0}: {1}" -f $_, $_.Exception.Message)
+    }
+
+    if($json -ne $null) {
+        $models = $json | ConvertFrom-Json
+        if($models.length -gt 0) {
+            $json | Out-File -FilePath "./models/$($_).json" -Encoding utf8 
+        } else {
+            Write-Host ("No models found for region: {0}" -f $_)
+        }
+    }
+}
+
+#!pwsh
+
+# models ディレクトリ内の JSON ファイル一覧を取得
+$files = Get-ChildItem -Path "./models" -Filter "*.json"
+
+# Markdown リンクを生成
+foreach ($file in $files) {
+    write-host "- [$($file.Name)](./models/$($file.Name))"
+}
+
+#!pwsh
+
+Get-ChildItem -Path "./models" -Filter "*.json" `
+    | foreach {
+        Get-Content -Path $_.FullName `
+            | ConvertFrom-Json `
+            | Add-Member -NotePropertyName 'region' -NotePropertyValue $_.Name.Split(".")[0] -PassThru } `
+    | sv models
+
+#!pwsh
+
+# $models | select region -Unique
+
+$models | Group-Object -Property region | foreach {
+    Write-Host ("{0} models in {1}" -f $_.Count, $_.Name)
+}
+
+#!pwsh
+
+Get-ChildItem -Path "./models" -Filter "*.json" `
+    | foreach {
+        Get-Content -Path $_.FullName `
+            | ConvertFrom-Json `
+            | Add-Member -NotePropertyName 'region' -NotePropertyValue $_.Name.Split(".")[0] -PassThru 
+} | sv models
+
+# モデル一覧
+$models
+    | select region, kind -ExpandProperty model `
+    | select region, kind, @{l='modelFormat';e={$_.format}}, @{l='modelName';e={$_.name}}, @{l='modelVersion'; e={$_.version}}, @{l='lifecycle';e={$_.lifecycleStatus}}, @{l='default';e={$_.isDefaultVersion}} -ExpandProperty skus `
+    | select region, kind, modelFormat, modelName, modelVersion, lifecycle, default, @{l='skuName';e={$_.name}}, @{l='deprecationDate ';e={$_.deprecationDate }} `
+    | sort-object region, kind, modelName, modelVersion `
+    | sv output
+
+$output | Format-Table | Out-String -Width 4096
+$output | Export-Csv -Path "modelList.csv" 
+
+#!pwsh
+
+Get-ChildItem -Path "./models" -Filter "*.json" `
+    | foreach {
+        Get-Content -Path $_.FullName `
+            | ConvertFrom-Json `
+            | Add-Member -NotePropertyName 'region' -NotePropertyValue $_.Name.Split(".")[0] -PassThru 
+} | sv models
+
+# capability の一覧
+$models `
+    | select -ExpandProperty model `
+    | select -ExpandProperty capabilities `
+    | foreach { $_.psobject.properties.name} `
+    | select -Unique `
+    | sort-object `
+    | sv capability_dictionary 
+
+$capability_dictionary 
+
+#!pwsh
+
+Get-ChildItem -Path "./models" -Filter "*.json" `
+    | foreach {
+        Get-Content -Path $_.FullName `
+            | ConvertFrom-Json `
+            | Add-Member -NotePropertyName 'region' -NotePropertyValue $_.Name.Split(".")[0] -PassThru 
+} | sv models
+
+# 各モデルのcapability
+$models `
+    | select region, kind -ExpandProperty model `
+    | select region, kind, format, name, version -ExpandProperty capabilities `
+    | select (@('region', 'kind', 'format', 'name', 'version') + $capability_dictionary) `
+    | sort region, kind, format, name, version `
+    | sv model_capabilities 
+
+$model_capabilities | Export-Csv -Path "modelCapabilities.csv"
+$model_capabilities | ConvertTo-Html | Out-File -FilePath ".\modelcapabilities.html" -Encoding utf8
+
+#!pwsh
+
+Get-ChildItem -Path "./models" -Filter "*.json" `
+    | foreach {
+        Get-Content -Path $_.FullName `
+            | ConvertFrom-Json `
+            | Add-Member -NotePropertyName 'region' -NotePropertyValue $_.Name.Split(".")[0] -PassThru 
+} | sv models
+
+$models | gm
+
+#!pwsh
+
+$model_capabilities `
+| where {$_.assistants -eq $true}
+| select region, format, name, version `
+| sort region, format, name, version `
+| ft -AutoSize `
+| Out-String -Width 4096
