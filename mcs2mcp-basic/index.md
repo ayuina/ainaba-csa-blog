@@ -446,4 +446,25 @@ API Management と Azure Container Apps 間は Managed ID を使用した Entra 
 
 MCP アクセス自体は Power Platform カスタムコネクタですので、同様に [Azure VNET サポート](https://learn.microsoft.com/en-us/power-platform/admin/vnet-support-setup-configure?tabs=new)を利用することが可能です。
 詳細な手順や構成は以下のブログが詳しいので是非ご参照ください。
+
 - [Power Platform の Azure Virtual Network サポート (サブネット委任)](https://qiita.com/Isato-Hiyama/items/08cdca65f2abad9f8757)
+
+詳細な手順は割愛しましたが、ここでは要点を整理しておきます。
+
+- Power Plat Region に対して Azure Region は２つ
+- VNET Enterprise Policy をデプロイ
+- 環境と接続（スクリプト rog GUI
+- APIM の Private Endpoint を設置
+
+ネットワーク構成図各
+
+## まとめ
+
+- MCS2MCP が出来ました
+- 簡易的ですが MCP を認証で守っています
+- APIM で集約してキー管理を楽にしています
+- MCS2MCP は閉域ネットワークに閉じています
+
+## 補足
+
+DLPでAPIMだけ許可
