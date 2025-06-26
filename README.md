@@ -2,6 +2,7 @@
 
 ### コンテンツ
 
+- [Microsoft Copilot Studio のカスタムエージェントから安全に MCP サーバーを呼び出す最小構成](./mcs2mcp-basic/)
 - [Azure AI Service で利用可能なモデルとその特徴や対応リージョンを調査する](./check-azure-aimodel-details/)
 - [Semantic Kernel と Azure AI Agent Service で作るエージェントの比較と組み合わせ](./azureaiagent-with-semantickernel/)
 - [Azure OpenAI Service で Chat Completion する 3 種の API](./call-aoai-api/)
