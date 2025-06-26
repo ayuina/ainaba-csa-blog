@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Microsoft Copilot Studio のカスタムエージェントから呼び出す MCP サーバーを呼び出す話
+title: Microsoft Copilot Studio のカスタムエージェントから安全に MCP サーバーを呼び出す最小構成
 ---
 
 ## はじめに
@@ -14,11 +14,19 @@ title: Microsoft Copilot Studio のカスタムエージェントから呼び出
 安全に使用できる MCP なアーキテクチャってどんなもんだろうなと考えていたのですが、Microsoft Copilot Studio （以降 MCS）カスタムエージェントの MCP 対応が１つの答えになるかもと思っています。
 ~~サラリーマンですし。~~
 ということで今回の記事はいろいろ試してみた雑記です。
-結論としては微妙な部分もあり、これがべスプラですとかいうつもりはないですが、今後の改善とかで良くなっていくといいなあという期待
+結論としては微妙な部分もあり、これがべスプラですとかいうつもりはないですが、今後の改善とかで良くなっていくといいなあという期待。
+
+### 目次
+
+- [アーキテクチャ概要](#アーキテクチャ概要)
+- [MCP Server on Azure](#mcp-server-on-azure)
+- [M365 Copilot Agent as MCP Client](#m365-copilot-agent-as-mcp-client)
+- [セキリティの考慮](#セキュリティの考慮)
+- [まとめ](#まとめ)
 
 ## アーキテクチャ概要
 
-さて、ざっくりした構成を考えてみます。
+まず、ざっくりした構成を考えてみます。
 
 ![basic architecture](./images/basic-architecture.png)
 
@@ -212,6 +220,10 @@ HTTP でホスト出来るように作ってありますので、```dotnet run``
 - Anthropic が提供している [Inspector](https://modelcontextprotocol.io/docs/tools/inspector) を使用する
 - 開発に Visual Studio Code を使用しているなら [GitHub Copilot の Agent Mode](https://code.visualstudio.com/docs/copilot/chat/mcp-servers) でエージェントの挙動も含めて試す
 
+|Inspector|VS Code|
+|---|---|
+|![alt text](./images/test-mcp-with-inspector.png)|![alt text](./images/test-mcp-with-ghcagentmode.png)|
+
 なお Claude Desktop 現状では標準入出力にしか対応していないようですので、前述の標準入出力用のホストで実行してあげればよいことになります。
 ただし、プロジェクトファイル(csproj)に対して ```dotnet run``` で起動すると、途中のコンパイラ出力などが出てしまうので、MCP サーバーとしてはプロトコル違反な挙動になります。
 この場合は一度 ```dotnet publish``` で発行して実行可能ファイルの状態にしておき、その出力ファイルを Claude Desktop の設定ファイルに渡してあげると良いでしょう。
@@ -225,6 +237,13 @@ HTTP でホスト出来るように作ってありますので、```dotnet run``
 Azure 上で対応する PaaS サービスは各種ありますが、
 [Azure Container Apps](https://learn.microsoft.com/ja-jp/azure/container-apps/overview) が良いかなと思います。
 
+Azure Container Apps の観点で言えば MCP サーバー特有なものというのは特にありません。
+適切に [Ingress](https://learn.microsoft.com/ja-jp/azure/container-apps/ingress-overview)を構成してあげて、その URL めがけて各種 MCP クライアントを接続してあげるだけです。
+このタイミングでも Application URL を取得して前述と同様に動作確認をしておくと良いと思います。
+
+![alt text](./images/deploy-mcpserver-on-aca.png)
+
+
 そもそも今回ターゲットにしているのは、一般ユーザーがチャットで対話するエージェントの裏で動く MCP サーバーです。
 ということは、ユーザーが話しかけない限り MCP サーバーが利用されることもありませんので、ホストはしているけど仕事していない時間の課金がもったいないことになります。
 従量課金プランでゼロスケールに対応できる（＝ゼロコストにできる）というのはメリットが大きいでしょう。
@@ -235,9 +254,6 @@ Azure 上で対応する PaaS サービスは各種ありますが、
 
 野良 MCP サーバーを抑制するためには、「組織として認められている正しい MCP サーバーの提供方法を確立しておく」というのは重要だと思います。
 そもそもルールを守るつもりのない人には効果は無いですが、一般的にはルールを守って（会社から怒られたりせずに） MCP サーバーを作りたい人の方が多いんじゃないかと思いますし。
-
-なお Azure Container Apps の観点で言えば MCP サーバー特有なものというのは特にありません。
-適切に [Ingress](https://learn.microsoft.com/ja-jp/azure/container-apps/ingress-overview)を構成してあげて、その URL めがけて各種 MCP クライアントを接続してあげるだけです。
 
 
 ## M365 Copilot Agent as MCP Client
@@ -322,8 +338,9 @@ paths:
 ### MCP サーバーをツールとして利用するエージェントの作成
 
 さて準備が整ったのでエージェントを作りましょう。
+他にも設定可能な項目はたくさんありますが、まずは最小限で動かしてみます。
 
-|設定箇所|参考画像|概要説明|
+|項目|参考画像|概要説明|
 |---|---|---|
 |概要|![alt text](./images/agent-definition.png)|エージェントに名前を付けて[生成 AI を使用するオーケストレーション](https://learn.microsoft.com/ja-jp/microsoft-copilot-studio/nlu-gpt-overview)を有効にする|
 |指示|![alt text](./images/agent-instruction.png)|エージェントの振る舞いを決めるためのプロンプトを記述|
@@ -371,12 +388,24 @@ MCP サーバーが使われる場合には、その内容と合わせて表示�
 
 ### ファサード あるいは セキュリティ ゲートウェイとしての API Management
 
-MCP サーバーとしての機能要件は Azure Container App だけで問題ないのですが、現状はなんの認証もかかっておらずインターネット上のありとあらゆる場所からアクセス可能な状態です。
-ACA の認証を設定してもいいのですが、~~ちょっと面倒なので~~ ここでは以下の組み合わせで行きたいと思います。
-- エージェントからのアクセスは API Management へ集約し API キーで保護
-- MCP サーバーは Entra ID 認証で保護して API Management のみをアクセス許可
+MCP サーバーとしての機能要件は Azure Container App だけで問題ないのですが、現状はなんのアクセス制御もかかっておらずインターネット上のありとあらゆる場所からアクセス可能な状態です。
+またエージェント側もインターネット上の任意の MCP サーバーが使えるわけです。
+この辺りの問題を API Management を挟むことで緩和していきましょう。
 
 ![alt text](./images/auth-by-api-key.png)
+
+- MCP サーバーの保護
+    - エージェントからのアクセスは API Management へ集約し API キーで保護
+    - MCP サーバーは Entra ID 認証で保護して API Management のみをアクセス許可
+- エンドポイントの共通化
+    - MCP サーバーが増減してもアクセス先となる URL が 1 つなので通信制御が楽になる（後述）
+    - カスタムコネクタの URL パターンも共通化されるため、DLP（データ損失防止ポリシー）による管理もしやすくなる
+- MCP サーバーの集中管理
+    - Azure Container App 以外で MCP サーバーをホストするときも差異を吸収できる
+    - 多数のエージェントや MCP サーバー間の通信ログを収集監視できる
+
+なお ACA （MCP サーバー）側でのエンドユーザー認証を設定してもいいのですが、~~ちょっと面倒なので~~ ここではまず簡易的な組み合わせで行きたいと思います。
+
 
 #### API Management への API 登録とフロント側の認証
 
@@ -442,29 +471,81 @@ API Management と Azure Container Apps 間は Managed ID を使用した Entra 
 - Azure Container Apps を[独自の VNET 内部にデプロイ](https://learn.microsoft.com/ja-jp/azure/container-apps/networking?tabs=workload-profiles-env%2Cazure-cli)するか、API Management のバックエンド側 VNET に [Private Endpoint](https://learn.microsoft.com/ja-jp/azure/container-apps/how-to-use-private-endpoint?pivots=azure-portal) を設置する
 
 
-### エージェントからの MCP サーバーアクセスを VNET 内に引き込む
+### エージェントからの MCP サーバーアクセスを閉域化する
 
-MCP アクセス自体は Power Platform カスタムコネクタですので、同様に [Azure VNET サポート](https://learn.microsoft.com/en-us/power-platform/admin/vnet-support-setup-configure?tabs=new)を利用することが可能です。
+エージェントによる MCP サーバーへのアクセスは Power Platform カスタムコネクタを使用しています。
+つまり [Azure VNET サポート](https://learn.microsoft.com/en-us/power-platform/admin/vnet-support-setup-configure?tabs=new)を利用することで、エージェントと MCP サーバー間の通信を閉域化すること可能です。
+
 詳細な手順や構成は以下のブログが詳しいので是非ご参照ください。
 
 - [Power Platform の Azure Virtual Network サポート (サブネット委任)](https://qiita.com/Isato-Hiyama/items/08cdca65f2abad9f8757)
 
 詳細な手順は割愛しましたが、ここでは要点を整理しておきます。
 
-- Power Plat Region に対して Azure Region は２つ
-- VNET Enterprise Policy をデプロイ
-- 環境と接続（スクリプト rog GUI
-- APIM の Private Endpoint を設置
+![alt text](./images/mcs2mcp-private-network.png)
 
-ネットワーク構成図各
+#### Azure 側の準備
+
+まずは Power Platform 環境から繋ぎこむために Azure 側のネットワークを構成します。
+
+- Power Platform 環境のリージョンと対応する 2 の Azure リージョンに VNET を配置する （[リージョンの対応関係](https://learn.microsoft.com/en-us/power-platform/admin/vnet-support-overview#supported-regions)）
+- それぞれに /24 以上のサブネットを作成して `Microsoft.PowerPlatform/enterprisePolicies` に委任
+- `Microsoft.PowerPlatform/enterprisePolicies` リソースを作成して二つのサブネットを参照
+
+![alt text](./images/pp-subnet-delegation-azure.png)
+
+
+さらに上記の ２つの VNET から API Management に閉域アクセスを可能とするように Private Endpoint を設置します。
+この際、各 VNET 内で API Management の名前解決が出来るように DNS ゾーン `privatelink.azure-api.net` を構成する必要があります。
+ただし、2 つのリージョンで VNET のアドレスレンジが異なるため、同一の名前 `yourApimName.azure-api.net` に対してそれぞれ異なる Private IP アドレスに解決してやる必要があります。
+つまり Private DNS Zone を共有することができませんので、リソースグループを分ける必要が出てきますので、大まかには以下のような構成になるのではないでしょうか。
+
+- Resource Group 1
+    - VNET 1
+        - Subnet A (Power Platform の Injection 用)
+        - Subnet B (Private Endpoint 設置用)
+    - DNS Zone (privatelink.azure-api.net) <- この名前がぶつかる
+        - 各 Private Endpoint の IP アドレス（Subnet **B** のアドレスレンジ）を解決する A レコード
+    - Enerprise Policy
+- Resource Group 2
+    - VNET 2
+        - Subnet C (Power Platform の Injection 用)
+        - Subnet D (Private Endpoint 設置用)
+    - DNS Zone (privatelink.azure-api.net) <- この名前がぶつかる
+        - 各 Private Endpoint の IP アドレス（Subnet **D** のアドレスレンジ）を解決する A レコード
+
+何度も構成するようであれば上記などまとめてデプロイするための IaC を用意しておくと良いかと思います。
+サンプルは[こちら](./iacsample)。
+
+#### Power Platform 側
+
+Azure 側の準備が完了したら、接続したい Power Platform 環境の `Azure 仮想ネットワークのポリシー` で上記の Enterprise Policy を参照してやります。
+
+![alt text](./images/pp-azure-network-policy.png)
+
+ところで困ったことに、このポリシーの割り当てはポータルから GUI 操作で可能なのですが、解除することができません。
+解除したい場合には CLI で実行する必要があります。
+とはいえそれなりに複雑なので、[GitHub で公開されているスクリプト](https://github.com/microsoft/PowerApps-Samples/tree/master/powershell/enterprisePolicies#9-remove-subnet-injection-from-an-environment)
+を使用したほうが良いでしょう。
+
+#### MCP サーバー側（API Management）
+
+さてエージェントからの通信は 2 つのリージョンのいずれかの VNET 内にルーティングされるようになりましたので、MCP サーバーのファサードとなる API Management の Private Endpoint をそれぞれの VNET 内に設置していきます。
+
+- Private Endpoint はリージョン、サブスクリプション、Entra ID テナントを[超えることが出来る](https://learn.microsoft.com/ja-jp/azure/private-link/private-link-faq)ため MCP サーバーの再利用がしやすくなる
+- Power Platform に委任した VNET を他の VNET と接続（Peering）しなくて良いので、アドレスレンジの衝突を気にしなくてよい
+- URL のドメイン部分が共通化されているため Private Link 用の DNS ゾーンのメンテナンスがほぼ不要になる
+
+![alt text](./images/configure-apim-private-endpoint.png)
+
 
 ## まとめ
 
-- MCS2MCP が出来ました
-- 簡易的ですが MCP を認証で守っています
-- APIM で集約してキー管理を楽にしています
-- MCS2MCP は閉域ネットワークに閉じています
+要所要所で若干手抜きというか簡易な選択肢を取っている部分もありますが、以下を実現することができました。
+最低限のセキュリティを考慮した最小構成が概ねこの辺りになってくるんじゃないかなと思います。
 
-## 補足
+- Azure 環境でのリモート MCP サーバーの作成と API としての集中管理
+- Copilot Studio を使用したカスタムエージェントの作成
+- エージェントと MCP サーバー間の通信閉域化と認証
 
-DLPでAPIMだけ許可
+ユーザー単位で認証したい場合どうするんだとか、エージェント自体の開発が結構難しいよねとか、いろいろ課題は残っているんですが、力尽きたのでこの辺でいったん終わりにします。
