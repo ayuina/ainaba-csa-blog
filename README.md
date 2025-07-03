@@ -1,6 +1,10 @@
-## ainaba's blog
 
-### コンテンツ
+### FY26
+
+- [カスタム エンジン エージェントを Microsoft 365 Copilot で公開する](./fy26/mcs-custom-engine-agent/)
+- [Microsoft Copilot Studio のカスタムエージェントから安全に MCP サーバーを呼び出す最小構成](./fy26/mcs2mcp-basic/)
+
+### FY25 or older
 
 - [Microsoft Copilot Studio のカスタムエージェントから安全に MCP サーバーを呼び出す最小構成](./mcs2mcp-basic/)
 - [Azure AI Service で利用可能なモデルとその特徴や対応リージョンを調査する](./check-azure-aimodel-details/)
