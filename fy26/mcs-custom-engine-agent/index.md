@@ -1,6 +1,6 @@
 ---
 layout: default
-title: カスタム エンジン エージェントを Microsoft 365 Copilot に公開する
+title: カスタム エンジン エージェントを Microsoft 365 Copilot で公開する
 ---
 
 ## はじめに
