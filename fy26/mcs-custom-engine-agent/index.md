@@ -266,16 +266,186 @@ Playground の起動を確認して話しかけると、デバッグ実行され
 
 ![alt text](./images/chat-with-playground.png)
 
-### Azure Bot Service を作成して連携する
+### Azure Bot Service とエージェントを連携する
 
-Bot Service つくる
-Service Principal の情報を Config に
-トンネルを掘る
-Bot Service の Web チャットで動作確認
+作成したエージェント（プロジェクト テンプレートのままですが）をエージェント ストアに出品するために、まずは Azure Bot Service を作成してローカルで動くエージェントと接続していきます。
+つまり以下のような構成を作っていきます。
+
+![alt text](./images/debug-agent-with-bot-service.png)
+
+#### Azure Bot Service の作成
+
+Azure Bot Service 自体の作成にはそれほどオプションはないですが、ここでは以下のオプションを選択するようにしてください。
+ここで設定する Entra ID 登録アプリが、Bot Service であり、作成した .NET アプリであり、後で Teams に登録するアプリを表すことになります。
+三位一体といったところでしょうか。
+
+|オプション|設定内容|備考|
+|---|---|---|
+|アプリの種類|シングルテナント| Entra ID アプリの認証範囲|
+|作成の種類|新しい Microsoft アプリ ID の作成| Entra ID にアプリを新規登録する|
+
+#### Service Principal の情報取得して構成ファイルに転記
+
+Azure Bot Service が出来上がると同時に Entra ID にアプリケーションが登録されます。
+これは各サービス間が通信する時の認証情報になるのでしっかりと控えておきつつ漏洩には気を付けましょう。
+
+- Azure Bot Service の `構成` メニューを開くと Microsoft App ID とテナント ID が表示されますので、この値を控えておきます
+- `パスワードの管理` というリンクがあるので、そちらをクリックするとクライアント シークレットを作成できますので、`新しいクライアント シークレット`を作成して値を控えておきましょう。
+- `メッセージング エンドポイント` の値はこのあと作成するトンネルの URL になるので、ここではそのままで良いです。
+
+![alt text](./images/copy-entraid-app-info.png)
+
+控えた値を `appsettings.Development.json` に転記していきます。
+
+```json
+{
+	"TokenValidation": {
+        // Guid 値は Entra に登録されたアプリ ID
+		"Audiences": [
+			"your-guid-of-application-id" 
+		]
+	},
+	"Connections": {
+		"BotServiceConnection": {
+			"Settings": {
+                // 認証をクライアントシークレットで行う
+				"AuthType": "ClientSecret", 
+                // Guid 値は Entra のテナント ID
+				"AuthorityEndpoint": "https://login.microsoftonline.com/your-guid-of-tennant-id",
+                // Guid 値は Entra に登録されたアプリ ID
+				"ClientId": "your-guid-of-application-id",
+                // 作成されたクライアントシークレットの値
+				"ClientSecret": "your-client-secret-of-application",
+				"Scopes": [
+					"https://api.botframework.com/.default"
+				]
+			}
+		}
+	},
+    // プロジェクト作成時に設定した Azure OpenAI サービスの接続情報
+	"Azure": {
+		"OpenAIApiKey": "your-api-key",
+		"OpenAIEndpoint": "https://resourceName.openai.azure.com",
+		"OpenAIDeploymentName": "gpt-4o"
+	}
+}
+```
+
+セキュリティの観点からは本来はユーザーシークレットに保存すべきなのですが、ここでは手を抜いています。
+このままソースコード レポジトリに Push してしまわないようにしましょう。
+
+#### エージェントをデバッグ実行して Dev Tunnel をつなぐ
+
+Azure Bot Service はエージェントである ASP.NET Core アプリにメッセージを送信する必要があるのですが、開発端末内のエンドポイントには到達できません。
+エンドポイントを公開できるサービス(App Service 等)にホストすると動作確認やデバッグがやりにくいので、開発用トンネルを作成してしまいましょう。
+
+まずはツールバーでデバッグ対象を切り替えます。
+`Start Project` というプロファイル情報は、プロジェクトの `Properties/launchSettings.json` ファイルに記載されています。
+このなかで環境変数 `ASPNETCORE_ENVIRONMENT` が `Development` に設定されているため、このプロファイルで起動することで、先ほどの `appsettings.Development.json` の設定が使われるわけです。
+ここを間違えて `Playground` の設定を使ってしまうと、異なる設定情報で動作することになるので、うまく動きません。
+~~しばらくハマりました~~
+
+![alt text](./images/configure-debug-project-profile.png)
+
+次に、デバッグ実行するプロジェクトに外部から接続するための、開発トンネルを作成しておきます。
+- 名前は適当につけてください。
+- トンネルの種類を`永続的`にすると URL が固定されるので、この後の作業はやりやすくなります。
+- また、アクセスを`公開用`にすると Dev Tunnel のアクセスには認証を要求されなくなるので、この後の作業がやりやすくなります。
+
+![alt text](./images/configure-debut-tunnel.png)
+
+さて長々と設定してきましたが、いよいよデバッグ実行です。
+コンソールが起動して ASP.NET Core の Web サーバーが `localhost:5130` で起動して、`Hosting environment` が `Development` に設定されていることが確認できるでしょう。
+
+Visual Studio の `開発トンネル ウィンドウ` を開き、出力ログを表示（ノート見たいなアイコン）すると、開発トンネルが待ち受けている URL が表示されます。
+以下のような URL フォーマットになっているはずです。
+
+- https://unique-id.asse.devtunnels.ms
+
+この URL にアクセスしてみると `Weather Bot` と表示されます。
+`Program.cs` で `Development` の場合に有効なルートとして登録されていたやつですね。
+
+![alt text](./images/access-agent-via-devtunnel.png)
+
+#### Azure Bot Service からエージェントをテストする
+
+さて先ほど取得した Dev Tunnel の URL のパスに `/api/message` を付与して、Azure Bot Service のメッセージング エンドポイントとして構成しておきます。
+`Web チャットでテスト` メニューから動作確認をすることができます。
+チャット開始からローカルで動作する ASP.NET Core アプリが呼び出されるのですが、言葉では説明しがたいので動画で。
+
+<video src="./images/bot-service-webchat-demo.mp4" controls="true"></video>
+
+ちょっと気温が凄いことになってますが、と、とりあえず動いたということでご容赦ください。
+エージェントの質の向上は本題ではないので・・・
 
 ### Copilot のエージェントストアに公開
 
-Azure Bot Service の Teams チャネルを構成する
-Teams アプリのマニフェストをアップロード
-利用してみる
+さて、いよいよ本題です。
+といっても Teams アプリとして公開するだけなので、それほど難しくはありません。
 
+#### Azure Bot Service の Teams チャネル構成
+
+まず Bot Service を Teams につなぎます。
+
+1. `チャンネル` メニューを開き、`使用可能なチャネル` から `Microsoft Teams` を選択します
+1. サービス条件に同意して、特にオプションの変更せずに `適用` します
+1. 接続されているチャネルとして `Microsoft Teams` が表示されます
+
+![alt text](./images/congigure-bot-service-teams-channel.png)
+
+#### Teams アプリのマニフェストを作成してアップロード
+
+次に Teams アプリを登録するのですが、先に登録情報（マニフェスト）を作成する必要があります。
+Visual Studio の `M365Agent` プロジェクト内の `appPackage` ディレクトリに、`manifest.json` と画像ファイルが格納されていると思います。
+この `manifest.json` にはいくつか ID 値が記載されていますが、それらを全て前述の Entra ID アプリケーションのクライアント ID 値に書き換えます。
+それ以外の表示名、説明、バージョンなども書き換えておくと親切だと思います。
+
+- `id`
+- `copilotAgents.customEngineAgents.id`
+- `bots.botId`
+
+編集が終わったらこの `appPackage` ディレクトリ内の 3 つのファイルを 1 つの Zip ファイルに固めておいてください。
+
+[Teams の管理センター](https://admin.teams.microsoft.com/) を開き、先ほどの Zip で固めたアプリ マニフェストをアップロードします。
+少し時間がかかりますが、以下のように詳細情報が確認できるようになります。
+
+![alt text](./images/upload-teams-app-manifest.png)
+
+
+#### Temas や Copilot から試す
+
+反映に少し時間がかかりますが、最初の図のようにエージェントストアに表示されれば成功です。
+
+![alt text](./images/cea-in-agent-store.png)
+
+Teams や Copilot でエージェントと会話してみた結果がこちら。
+
+<video src="./images/cea-via-teams-and-copilot.mp4" controls="true"></video>
+
+### 仕上げ
+
+ここまでくれば、あとはエージェントを開発しつつ、Copilot や Teams からテストしつつ、その挙動を端末上でデバッグしつつ、という一般的な作業になります。
+出来上がったエージェントは普通の ASP.NET Core アプリなので、サポートされているホスティング環境にデプロイしてやればよいですね。
+ただし Azure Bot Service からメッセージング エンドポイントを叩ける必要があるので、パブリックエンドポイントを持つようにしてあげてください。
+Azure App Service や Container Apps なりの PaaS サービスなどがよろしいかなと思います。
+デプロイしたら URL の切り替えを忘れずに。
+
+## まとめ
+
+本記事ではプロジェクトテンプレートそのままですが、独自開発したエージェントを Microsoft 365 Copilot と同じようにエージェントとしてユーザーに提供できることを確認できました。
+キモになるのは Azure Bot Service で中継してやるところでしょうか。
+
+上記の手順で見た通り、エージェントの実体は、Temas や Copilto 環境にあるのではではなく、Azure Bot Service で指定したメッセージング エンドポイントの先にあります。
+つまりエージェントの刷新があったとしても、このエンドポイントの先だけ繋ぎ変えてあげればいいわけですね。
+エージェントは運用の中でテレメトリ等を取りつつ LLM、Instruction、Knowledge、Tool などを継続的にチューニング、開発していく DevOps サイクルで育てていくことが重要です。
+最近は AgengOps とか言うんでしょうか。
+ただし Teams 側は特に何も変える必要がないので、ユーザー影響なくシームレスに切り替えることが出来るわけです。
+
+今回紹介したカスタム エンジン エージェントは、前回の記事で紹介したような Copilot Studio で作る宣言型エージェントに比べてかなり手間がかかるのは事実です。
+これはローコードや市民開発とはかけ離れたプロ開発者向けの領域です。
+一方で、上記のような AgentOps を継続的に回していくというのは、システムの保守・運用を主業務としてプロ開発者でもない限り現実的でもないと考えます。
+そうすると開発自由度が高く、従来からある IT プラクティスが活用できるプロコード開発も良い選択肢になるのではないでしょうか。
+
+そうやって作られたエージェントを、（独自のアプリではなく）ユーザーが日ごろから慣れ親しんでいる（？）M365 Copilot や Teams に組み込んで提供できるアーキテクチャというのはメリットが大きいんじゃないかなと思っています。
+
+![alt text](./images/variable-agents-dev.png)
