@@ -1023,7 +1023,7 @@ Console.WriteLine(response.GetOutputText());
 - 2つ目はプロジェクト内のすべてのエージェントが共有する Agent ID です（生成日は当該 Project で初めてエージェントを作成した日）
 - 3つ目がエージェントを公開したときに作成される Agent ID で、エージェント名がついていることから判別がつきます（生成日は当該エージェントを初めて発行した日）
 
-![alt text](image.png)
+![alt text](./images/entra-agent-id.png)
 
 この Agent ID の使い方などはまだ整理しきれていないのですが、少なくも Foundry に登録した時点で「野良ではない」状態になることがわかります。
 
