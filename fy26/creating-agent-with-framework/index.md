@@ -496,7 +496,7 @@ Azure.AI.Projects.AIProjectClient GetFoundryProjectClient()
   - MAF は内部的にこの `Microsoft.Extensions.AI` パッケージを使用しており、抽象インタフェースとして [IChatClient](https://github.com/dotnet/extensions/blob/main/src/Libraries/Microsoft.Extensions.AI.Abstractions/ChatCompletion/IChatClient.cs) が定義されています。
   - MAF ではその `IChatClient` の拡張メソッド [AsAiAgent](https://github.com/microsoft/agent-framework/blob/main/dotnet/src/Microsoft.Agents.AI/ChatClient/ChatClientExtensions.cs) が提供されていますので、こちらを使用してエージェントを作成します。
 
-## Step 3 : ASP.NET でエージェントを提供する
+## Step 3 : ASP.NET でエージェント機能を Web サービスとして提供する
 
 ここまでは Console アプリケーションとしてエージェントを作ってきましたが、折角なので作成したエージェントを広く使ってもらいたくもなるでしょう。
 このような状況では Web アプリケーションで UI を提供するか、API を提供して他のサービスやツールに組み込んでもらうことになります。
@@ -504,12 +504,13 @@ Azure.AI.Projects.AIProjectClient GetFoundryProjectClient()
 ### ASP.NET Core WebAPI にエージェントを組み込む
 
 先ほど作成した Microsoft Foundry モデルを使用したエージェントを ASP.NET Core WebAPI に組み込んでみましょう。
+上記では `AIProjectClient` や `AIAgent` を毎回生成していたのですが、ここでは Dependency Injection を使用してインスタンスを登録しています。
 
 ```csharp
 #:sdk Microsoft.NET.Sdk.Web
+#:property PublishAot=false
 #:package Azure.Identity@1.20.0
 #:package Microsoft.Agents.AI.Foundry@1.0.0
-#:property PublishAot=false
 
 using System.ComponentModel;
 using Azure.AI.Projects;
@@ -517,10 +518,9 @@ using Azure.Identity;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
-// ASP.NET のホストを作成
 var builder = WebApplication.CreateBuilder(args);
 
-// AIProjectClient を DI サービスに追加
+// DI に AIProjectClient を登録
 builder.Services.AddSingleton<AIProjectClient>(sp => {
     var endpoint = $"https://{foundry}.services.ai.azure.com/api/projects/{project}";
     var credential = new AzureCliCredential();
@@ -528,32 +528,31 @@ builder.Services.AddSingleton<AIProjectClient>(sp => {
     return projClient;  
 });
 
-// AIProjectClient から作った Agent を DI サービスに追加
+// DI に AIAgent を登録
 builder.Services.AddSingleton<AIAgent>(sp => {
     var projClient = sp.GetRequiredService<AIProjectClient>();
-    var agentName = "agent-run-on-local-aspnet";
-    var modelname = "model-router";
-    var inst = "関西弁でしゃべって";
     var agent = projClient.AsAIAgent(
-        name: agentName,
-        model: modelname,
-        instructions: inst,
+        name: "agent-run-on-local-aspnet",
+        model: "model-router",
+        instructions: "関西弁でしゃべって",
         tools: [
             AIFunctionFactory.Create(GetCurrentTime),
         ]);
-
     return agent;
 });
 
 var app = builder.Build();
 
-// 特定のエンドポイント上で Agent を使用するロジックを実装
+// Web API が呼び出されたらエージェントで処理して返す
 app.MapGet("/", async (AIAgent agent) => {
-    return await agent.RunAsync("今何時？");
+    var ret = await agent.RunAsync("今何時？");
+    Console.WriteLine($"{ret.GetType().ToString()} : {ret}");
+    return ret;
 });
 
 await app.RunAsync();
 
+// ツールの定義
 [Description("Get the current time in a specific format.")]
 static string GetCurrentTime()
 {
@@ -561,14 +560,16 @@ static string GetCurrentTime()
 }
 ```
 
-これを実行してホストされた http://localhost:5000 をブラウザ等で開くと以下のような回答が返ってきます。
+雑な作りではありますが、これを実行してホストされた http://localhost:5000 をブラウザ等で開く（HTTP GET）するとと以下のような回答が返ってきます。
+機能的にはほとんど変えていないので、関西弁で現在時刻を教えてくれています。
+~~「おおきに」って言えば関西弁っていうわけでもないと思いますが~~
 
 ```json
 {
   "messages": [
     {
       "authorName": "agent-run-on-local-aspnet",
-      "createdAt": "2026-04-08T09:21:14+00:00",
+      "createdAt": "2026-04-12T03:00:21+00:00",
       "role": "assistant",
       "contents": [
         {
@@ -576,7 +577,7 @@ static string GetCurrentTime()
           "name": "_Main_g_GetCurrentTime_0_3",
           "arguments": {},
           "informationalOnly": true,
-          "callId": "call_55auLbyVN012HS6U8WGD4JQ6",
+          "callId": "call_pVZKq6BJpOEnonP1uUeQ5naY",
           "annotations": null,
           "additionalProperties": null
         }
@@ -591,8 +592,8 @@ static string GetCurrentTime()
       "contents": [
         {
           "$type": "functionResult",
-          "result": "2026-04-08 18:21:16.805",
-          "callId": "call_55auLbyVN012HS6U8WGD4JQ6",
+          "result": "2026-04-12 12:00:29.346",
+          "callId": "call_pVZKq6BJpOEnonP1uUeQ5naY",
           "annotations": null,
           "additionalProperties": null
         }
@@ -602,29 +603,29 @@ static string GetCurrentTime()
     },
     {
       "authorName": "agent-run-on-local-aspnet",
-      "createdAt": "2026-04-08T09:21:19+00:00",
+      "createdAt": "2026-04-12T03:00:27+00:00",
       "role": "assistant",
       "contents": [
         {
           "$type": "text",
-          "text": "今は18時21分16秒やで～。",
+          "text": "おおきに！今は2026年4月12日 12時00分29秒やで。",
           "annotations": null,
           "additionalProperties": null
         }
       ],
-      "messageId": "msg_02d85509547fde290069d61e12bfe48194801b10a0575de30c",
+      "messageId": "msg_06aa0f258cf90f890069db0acd3acc8196b9d8b1a974cb5dd6",
       "additionalProperties": null
     }
   ],
-  "agentId": "39e47771d22444b18db2b12b543af7b9",
-  "responseId": "resp_02d85509547fde290069d61e0f831081949d466844393cb073",
+  "agentId": "b620fec17f734b9b9b59afd1aa416ef8",
+  "responseId": "resp_06aa0f258cf90f890069db0acbf9848196a27e4b49f50f3b51",
   "continuationToken": null,
-  "createdAt": "2026-04-08T09:21:19+00:00",
+  "createdAt": "2026-04-12T03:00:27+00:00",
   "finishReason": null,
   "usage": {
     "inputTokenCount": 192,
-    "outputTokenCount": 696,
-    "totalTokenCount": 888,
+    "outputTokenCount": 702,
+    "totalTokenCount": 894,
     "cachedInputTokenCount": 0,
     "reasoningTokenCount": 320,
     "additionalCounts": null
@@ -633,5 +634,366 @@ static string GetCurrentTime()
 }
 ```
 
-先ほどまでは標準出力に最終メッセージだけが表示されていましたが、Agent の `RunAsync` の戻り値のオブジェクトは `ToString` がオーバーライドされていて最終メッセージだけになっていたものと考えられます。
-今回のコードでは ASP.NET Core Web API で返すと JSON にシリアライズされて、エージェントの応答全てが確認できている、ということですね。
+先ほどまでの例では標準出力に AIAgent の `RunAsync` の戻り値を `ToString` した結果を文字列として表示していましたが、
+今回のコードでは ASP.NET Core Web API でオブジェクトを返しているので JSON にシリアライズされて、エージェントの応答全てが確認できている、ということになります。
+
+### ここまでのまとめ
+
+雑な作りではありますが、MAF を使用して AIAgent オブジェクトを作成してあげれば、AIAgent なアプリを実装するのはそれほど難しくないと思います。
+あとはエージェントに求められる「要件」に合わせて Web API なりブラウザで表示する UI を実装してあげれば良いかと思います。
+オンプレのサーバーで動かしてもいいですし、Azure App Sercice や Azure Container Apps 上にホストして運用負荷を軽減するのもよいでしょう。
+.NET の Dependency Injection の仕組みを使っているので Azure Functions に組み込んであげるという方法も考えられます。
+
+とはいえ、そうやって独自に作った Web API なエージェントは、API 仕様としては独自設計なので他のサービスとの相互運用性が弱くなります。
+
+## Step 4 : Hosting Adapter と Microsoft Foundry Hosted Agent
+
+相互運用性を考えた場合には対話のプロトコルが標準化されていることが重要です。
+Microsoft Foundry の Agent Service で作成した「プロンプト ベース エージェント」は、
+発行によって [Response API で対話できる](https://learn.microsoft.com/ja-jp/azure/foundry/agents/how-to/publish-agent) ようになります。
+これによって Response API 対応の任意のクライアントから接続できますし、例えば Copilot や Teams を使って対話できるようになるわけです。
+
+先ほどまでは ASP.NET Core を使用して独自仕様のエージェントとして開発しましたが、この Response API 対応を考えていきたいと思います。
+とはいえ、さすがに [Responses API](https://developers.openai.com/api/reference/responses/overview) を自力実装するのは大変です。
+どうしましょう。
+
+### Hostig Adapter を使用してエージェントを Response API でホストする
+
+この MAF で作成したエージェントは [ホスティング アダプター](https://learn.microsoft.com/en-us/dotnet/api/overview/azure/ai.agentserver.agentframework-readme?view=azure-dotnet-preview)
+を使用してホストしてあげることで Response API に対応できます。
+
+- [Azure AI Agent Server client library for .NET (Azure SDK for .NET)](https://learn.microsoft.com/en-us/dotnet/api/overview/azure/ai.agentserver.agentframework-readme?view=azure-dotnet-preview)
+- [Azure.AI.AgentServer.AgentFramework パッケージ (nuget)](https://www.nuget.org/packages/Azure.AI.AgentServer.AgentFramework/1.0.0-beta.11#versions-body-tab)
+- [Microsoft Foundry Hosted Agents (sample code)](https://github.com/Azure-Samples/foundry-hosted-agents-dotnet-demo?tab=readme-ov-file)
+
+サンプルコードを見ると長々と書いてあるのですが、実は Hosting Adapter の適用自体は簡単で、
+ホスティング アダプターで提供されている AIAgent の拡張メソッド [`RunAIAgentAsync`](https://learn.microsoft.com/en-us/dotnet/api/azure.ai.agentserver.agentframework.extensions.aiagentextensions?view=azure-dotnet-preview) 
+を呼び出してあげるだけです。
+
+だけなんですが、どうも本記事執筆時点のホスティングアダプター Version `1.0.0-beta.11` と、
+最近リリースされた MAF の正式版 Version `1.0.0` だと内部的なライブラリが不整合を起こしているのか、うまく動きません。
+Agent 呼び出すとランタイムエラーになっちゃう。
+というわけでちょっと古いバージョンの Hosting Adapter Version `1.0.0-beta.9` および  MAF の Version `1.0.0-rc3` を使用しています。
+後でちょっと補足します。
+
+```csharp
+#:property PublishAot=false
+#:package Azure.Identity@1.20.0
+#:package Azure.AI.AgentServer.AgentFramework@1.0.0-beta.9
+#:package Microsoft.Agents.AI.OpenAI@1.0.0-rc3
+
+using System.ComponentModel;
+using Azure.AI.AgentServer.AgentFramework.Extensions;
+using Azure.Identity;
+using Microsoft.Extensions.AI;
+using OpenAI.Chat;
+
+var chatClient = GetOpenAIChatClient();
+var agent = CreateAgent(chatClient);
+
+// 作成したエージェントをホスティング アダプターを使用してホスト
+await agent.RunAIAgentAsync();
+
+// Step 1 と同様に OpenAI の ChatClient を生成していますが、Foundry 相手なら Entra ID 認証したいので AzureOpenAIClient 経由で生成
+OpenAI.Chat.ChatClient GetOpenAIChatClient()
+{
+    var endpoint = $"https://{foundry}.openai.azure.com";
+    var credential = new AzureCliCredential();
+    var aoaiClient = new Azure.AI.OpenAI.AzureOpenAIClient(new Uri(endpoint), credential);
+    return aoaiClient.GetChatClient("gpt-4.1");
+}
+
+// Agent 作るところは一緒ですが、LLM だと ToolMode や Temperature を指定しなくてもツール呼んでくれるので、ここでは簡易なオーバーロードを使用
+Microsoft.Agents.AI.AIAgent CreateAgent(OpenAI.Chat.ChatClient chatClient)
+{
+    var agentName = "agent-with-hosted-on-adaputer";
+    var inst = "関西弁でしゃべって";
+
+    return chatClient.AsAIAgent(
+        name:agentName,
+        instructions: inst,
+        tools: [ AIFunctionFactory.Create(MyTools.GetCurrentDateTime) ]
+    );
+}
+
+internal static class MyTools
+{
+    [Description("Get the current date and time in a specific format.")]
+    internal static string GetCurrentDateTime()
+    {
+        Console.WriteLine($"=== calling tool {nameof(GetCurrentDateTime)} ===");
+        return DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+    }
+}
+```
+
+起動するとデフォルトでは ポート 8088 でホストしてる旨が標準出力に表示されますので、そこを REST Client 等から Responses API として呼び出してあげます。
+
+```http
+@port = 8088
+###
+POST http://localhost:{{port}}/responses
+Content-Type: application/json
+
+{
+    "input": "今何時？"
+}
+```
+
+成功すると以下のような結果が返ってきます。
+
+```json
+{
+  "metadata": null,
+  "temperature": null,
+  "top_p": null,
+  "user": null,
+  "id": "resp_r0ICuptyITl4Tm0aMr8wxnuEqE1EmyjQvCIsl032wg9tsBs2Hw",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1775971627,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "function_call",
+      "id": "func_r0ICuptyITl4Tm0aMrLmmwPxHY31Do4hkbPeGzCN0KmMuu4tfC",
+      "created_by": {
+        "agent": {
+          "type": "agent_id",
+          "name": "agent-with-hosted-on-adaputer",
+          "version": ""
+        },
+        "response_id": "resp_r0ICuptyITl4Tm0aMr8wxnuEqE1EmyjQvCIsl032wg9tsBs2Hw"
+      },
+      "status": "completed",
+      "call_id": "call_vL1GLX50buS3fphpnBYxj107",
+      "name": "GetCurrentDateTime",
+      "arguments": "{}"
+    },
+    {
+      "type": "function_call_output",
+      "id": "funcout_r0ICuptyITl4Tm0aMrJ3VEKsyXxddpEZRdba7HB8cCQFYi2eDw",
+      "created_by": {
+        "agent": {
+          "type": "agent_id",
+          "name": "agent-with-hosted-on-adaputer",
+          "version": ""
+        },
+        "response_id": "resp_r0ICuptyITl4Tm0aMr8wxnuEqE1EmyjQvCIsl032wg9tsBs2Hw"
+      },
+      "status": "completed",
+      "call_id": "call_vL1GLX50buS3fphpnBYxj107",
+      "output": "2026-04-12 14:27:10.236"
+    },
+    {
+      "type": "message",
+      "id": "msg_r0ICuptyITl4Tm0aMrjUFueCVFLJxdiSk5q8MTUt2NXaWNhhLD",
+      "created_by": {
+        "agent": {
+          "type": "agent_id",
+          "name": "agent-with-hosted-on-adaputer",
+          "version": ""
+        },
+        "response_id": "resp_r0ICuptyITl4Tm0aMr8wxnuEqE1EmyjQvCIsl032wg9tsBs2Hw"
+      },
+      "status": "completed",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "今は2026年4月12日、14時27分やで！",
+          "annotations": []
+        }
+      ]
+    }
+  ],
+  "instructions": null,
+  "usage": {
+    "input_tokens": 152,
+    "input_tokens_details": null,
+    "output_tokens": 32,
+    "output_tokens_details": null,
+    "total_tokens": 184
+  },
+  "parallel_tool_calls": false,
+  "conversation": null
+}
+```
+
+#### [補足] ライブラリのバージョンや非互換について
+
+ホスティング アダプター [Azure.AI.AgentServer.AgentFramework](https://www.nuget.org/packages/Azure.AI.AgentServer.AgentFramework) 
+は本記事執筆時点ではベータ段階で、最新のバージョンは `1.0.0-beta.11` となっており正式版がリリースされておりません。
+またこのバージョンは後述の Microsoft Foundry 上で動作させようとするとうまく動かず、サンプルコードにあった `1.0.0-beta.9` まで戻して使用しています。
+
+またこれらベータ段階のホスティングアダプターに対応する Microsoft Agent Framework も `1.0.0-rc3` となっており、正式版では組み合わせて動作しません。
+しかも Microsoft Foundry 用のプロバイダー [Microsoft.Agents.AI.Foundry](https://www.nuget.org/packages/Microsoft.Agents.AI.Foundry) はこの `1.0.0-rc3` が公開されていないのです。
+OpenAI 用のプロバイダー [Microsoft.Agents.AI.OpenAI](https://www.nuget.org/packages/Microsoft.Agents.AI.OpenAI) の `1.0.0-rc3` は公開されていたのでそちらを使っています。
+このため Foundry のプロジェクトエンドポイントから **ではなく**、 Foundry の OpenAI エンドポイント経由での呼び出しにしています。
+
+![alt text](./images/msfoundry-openai-endpoints.png)
+
+ホスティング アダプターの正式版がリリースされたらこの辺も美しくなることを期待しつつ、先に進みます。
+
+### Microsoft Foundry に Hosted Agent としてデプロイする
+
+さて作ったエージェント アプリを早速 Microsoft Foundry にデプロイしたいところですが、いくつか手順があるのでかいつまんで紹介していきます。
+詳細はMicrosoft Foundry の [Hosted Agent](https://learn.microsoft.com/ja-jp/azure/foundry/agents/how-to/deploy-hosted-agent?tabs=bash) あたりをご参照ください。
+
+#### エージェントアプリのコンテナ化
+
+まずはホスティング アダプターを使用してエージェントをホストするアプリをコンテナでくるんであげる必要があります。
+ビルドコンテナで `publish` しておいて実行可能ファイルを runtime コンテナに持ち込むのが正しいんでしょうが、ここは簡易的に以下の Dockerfile として実装します。
+（下記の `runagent_on_hostingadapter.cs` ファイルが前述のサンプルコードになります）
+
+```dockerfile
+FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS final
+WORKDIR /app
+
+COPY ./runagent_on_hostingadapter.cs .
+RUN dotnet restore ./runagent_on_hostingadapter.cs
+RUN dotnet build ./runagent_on_hostingadapter.cs
+
+EXPOSE 8088
+ENTRYPOINT ["dotnet", "run", "./runagent_on_hostingadapter.cs"]
+```
+
+これまでは開発環境で動作させていたので、Foundry Models へのアクセスには `AzureCliCredential` を使用していました。
+が、これは Azure CLI を使用して `az login` した際の認証情報キャッシュを使っているので、Foundry 等のクラウド PaaS 上では動作しません。
+そちらでは Managed Identity を使用することになるため、以下のようにコードを書き換えて開発環境とクラウド環境の両対応を目指します。
+
+```csharp
+var credential = new ChainedTokenCredential(
+    new ManagedIdentityCredential(new ManagedIdentityCredentialOptions()),
+    new AzureCliCredential()
+);
+```
+
+このあと Docker を使用してコンテナイメージをビルドして動作確認したいのですが、ここでも Credential 問題が付きまといます。
+もう面倒なのでテストせずにコンテナをぶち込んでいきます。
+ビルドも Azure Container Registry にやらせてしまいましょう。
+
+```powershell
+az acr login -n ${yourRegistryName}
+az acr build -r ${yourRegistryName} -t myhostingagent:v1
+```
+
+#### コンテナイメージからホステッドエージェントを作成する
+
+コンテナイメージが出来上がったら、Microsoft Foundry プロジェクトが上記の ACR からコンテナイメージを Pull 出来る必要があります。
+つまりプロジェクトレベルの システム 割り当て マネージド ID に、前述の レジストリに対する ACRPull を割り当てる必要があるわけですね。
+
+ポータルからちくちくやってもいいですし、コマンドラインでやるなら以下のようになります。
+
+```powershell
+az role assignment create 
+        --assignee ${マネージ ID のオブジェクト ID (GUID)} `
+        --role AcrPull 
+        --scope /subscriptions/${サブスクリプションID}/resourceGroups/${リソースグループ名}/providers/Microsoft.ContainerRegistry/registries/${レジストリ名}
+```
+
+アクセス権の設定ができたらコンテナイメージからエージェントを作成します。
+これも Azure Developer CLI を使ったりプログラムコードで実装したりといろいろやり方はあるみたいなのですが、
+Azure CLI が分かりやすくていいんじゃないかなと思います（個人的な趣味とも言う）。
+この辺のコマンドラインについては[ドキュメントを参照](https://learn.microsoft.com/en-us/cli/azure/cognitiveservices/agent?view=azure-cli-latest)
+していただくとよろしいかと思います。
+
+```powershell
+az cognitiveservices agent create `
+    --account-name ${Foundryの名前}$ `
+    --project-name ${Foundryプロジェクトの名前} `
+    --name ${作成するエージェントの名前} `
+    --image ${使用するコンテナイメージ acrName.azurecr.io/containerImage:tagName}
+```
+
+#### エージェントの認証情報の設定
+
+さて動作させる前にもう一つ、コンテナとして送り込んだエージェントに対して、LLM へのアクセス権が必要になります。
+前述の例のようにエージェントは頭脳として Foundry Model を使用していますので、当然そこにアクセス可能である必要があります。
+というわけで、「プロジェクト レベルのマネージド ID に対して、Foundry の Azure AI User ロールを割り当てておきましょう。
+
+### ホステッドエージェントの動作確認
+
+やっと出来たホステッドエージェント、折角なので動かしてみたいですよね。
+
+#### Foundry ポータルの Playground を使用して試してみる
+
+Foundry Potal でエージェント画面を開いてみると、ついに先ほど `az cognitiveservices agent create` したエージェントが現れます。
+
+![alt text](./images/hosted-agent-in-portal.png)
+
+これを選択すると Playground を使って話しかけられるのですが、なぜか応答が返ってきません。
+ログストリームとか見てもエラーとか出てないんですが、ライブラリもベータ版ですし、サービス自体もまだプレビュー段階なので、
+これは現段階では仕方ないのかなあというところです。
+
+![alt text](./images/hosted-agent-in-playground.png)
+
+#### クライアント アプリから試してみる
+
+Playground でコード画面を開くと、SDK を使用したクライアントアプリのサンプルコードが表示されます。
+これも私が表示した時点ではちょっと古く、そのままではコンパイルエラーになるのですが、ちょっとした手直しで動かしました。
+Playground で作成したプロンプト ベース エージェントのクライアントアプリとほぼ一緒ですね。
+
+```csharp
+#:package Azure.AI.Projects@2.0.0
+
+using Azure.AI.Projects;
+using Azure.AI.Projects.Agents;
+using Azure.AI.Extensions.OpenAI;
+using Azure.Identity;
+using OpenAI.Responses;
+
+#pragma warning disable OPENAI001
+
+// Foundry プロジェクトのクライアントを作り
+const string projectEndpoint = $"https://{foundry}.services.ai.azure.com/api/projects/{project}";
+AIProjectClient projectClient = new(endpoint: new Uri(projectEndpoint), tokenProvider: new AzureCliCredential());
+
+// エージェント名とバージョンを指定してエージェントの参照情報を作り
+const string agentName = $"{agentName}";
+const string agentVersion = "2";
+AgentReference agentReference = new(name: agentName, version: agentVersion);
+
+// エージェントと Response API で会話するためのクライアントを作り
+ProjectResponsesClient responseClient = projectClient.GetProjectOpenAIClient().GetProjectResponsesClientForAgent(agentReference);
+
+// 話しかけます
+ResponseResult response = responseClient.CreateResponse(
+    "今何時？"
+);
+
+Console.WriteLine(response.GetOutputText());
+```
+
+結果は以下のようになりました。
+動作環境が日本国内の PC じゃないので、タイムゾーンがグリニッジ標準時に変わってしまっていますが、ちゃんと動作している模様です。
+
+```
+今は2026年4月12日、朝の7時23分やで！
+```
+
+## おわりに
+
+ここまで読んでいただいた方、長々とありがとうございました。（本当に長かった）
+
+2026 年 4 月 2 日に Microsoft Agent Framework が正式リリースされたので、
+その記念と勉強もかねていろいろ試してみたかっただけなのですが、いろいろと試行錯誤が必要でした。
+私の技術力の問題といえばそれまでなのですが、時差の関係でエイプリルフールなんじゃないかと思ったともいいます。
+正式リリースされたとはいえ一部機能はまだプレビューや試験段階な機能もあるみたいですし、
+関連するホスティング アダプターもまだプレビューだし、
+この記事を執筆している 4 月 12 日に Version 1.1.0 がリリースされていたりします。
+正直なところを言えば、必要な情報が出そろって、各種のノウハウが蓄積され、安定して開発・運用に使えるようにはしばらく時間がかかりそうだなあという印象です。
+
+とはいえ、エージェント開発としては割とシンプルな形に落ち着くようになるんじゃないかなとも思っています。
+様々なプロバイダーに対応するために、ライブラリとしては少しわかりにくくなっている面もあるのですが、このあたりも情報がそろってしまえば使いやすくなるのかなと。
+
+Microsoft さんとしては全てのエージェント関連リソースを Azure で統一したいという野望はもちろんあるんでしょうが、
+上記の通り技術的には エージェントの開発環境も実行環境も、そこで使用する SDK にも Microsoft な縛りがありません。
+（OpenAI 発とは言え）Chat Completions や Responses API もプロトコルとしては標準的といってもいいでしょうし、
+上記では触れることすらできなかった MCP や A2A といったプロトコルにも対応していくようです。
+
+一方で好き勝手にエージェントを作られて野良エージェントが大量発生してしまえば、企業としてはそれはそれで困ってしまうわけですよね。
+作りとしてはオープンな標準（お作法？）に則りつつ、管理性は犠牲にしないで開発生産性を最大化できるといいなあと思っています。
+
+個人的にはまだまだ調査・確認したいことは山ほどあるのですが、まずは僕と同じ初心者向けのドキュメントとしてお役に立てれば幸いです。
