@@ -1,39 +1,40 @@
 ---
 layout: default
-title: Microsoft Agent Framework で作成する様々な種類のエージェント
+title: Microsoft Agent Framework で作成する様々なエージェント
 ---
 
 ## はじめに
 
 Microsoft Agent Framework が正式にリリースされ [Version 1.0 になりました](https://devblogs.microsoft.com/agent-framework/microsoft-agent-framework-version-1-0/)。
-とはいえ昨今は Agent を作るためのアレコレが非常に多いですよね。
-私自身もかなり混乱してしまっています。
-というわけで、ちょっと知識の整理にために簡単なエージェントをいろいろ作ってみようと思います。
+昨今は Agent を作るためのアレコレが非常に多いし、似たようなライブラリも多くて私自身かなり混乱しています。
+というわけで、ちょっと知識の整理にために簡単なエージェントをいろいろ作ってみようと思った記録です。
 
-### Microsoft Agent Framework の参考情報
+Microsoft Agent Framework（長いので以降は MAF と書くことにします）は他のライブラリと似たような形式になっていて、
+様々な[プロバイダー](https://learn.microsoft.com/ja-jp/agent-framework/agents/providers/?pivots=programming-language-csharp)に対応しています。
+つまり Microsoft Azure や OpenAI を使わなくても（もちろん使っても）エージェントが作れる、という設計になってるようです。
 
-さて上記はリリースをアナウンスする記事ですが、公開されている情報は以下から得ることができます。
+全パターンを網羅するのは大変なので、以降では私が気になったところをピックアップして試してみようと思います。
+
+### [参照] Microsoft Agent Framework
+
+上記はリリースをアナウンスする記事ですが、公開されている情報は以下から得ることができます。
 
 - [Project Website](https://learn.microsoft.com/ja-jp/agent-framework/)
 - [Source Repository](https://github.com/microsoft/agent-framework)
 - [Nuget Package](https://www.nuget.org/packages/Microsoft.Agents.AI)
 
-
-Microsoft Agent Framework（長いので以降は MAF と書くことにします）は他のライブラリと似たような形式になっていて、
-様々な[プロバイダー](https://learn.microsoft.com/ja-jp/agent-framework/agents/providers/?pivots=programming-language-csharp)に対応しています。
-つまり Microsoft Azure や OpenAI を使わなくても（もちろん使っても）エージェントが作れる、という設計になってます。
-
-しかし全パターンを網羅するのは大変なので、以降では私が気になったところをピックアップして試してみようと思います。
-
 ## Step 1 : Foundry Local を使用してローカルで動作するエージェント
 
 まずはクラウドのインフラに頼らず、手元の端末で動かすことのできるエージェントを作ってみたいと思います。
-必要なのは .NET SDK と MAF のパッケージ [Microsoft.Agents.AI](https://www.nuget.org/packages/Microsoft.Agents.AI)になります。
 
-ローカルで言語モデルを動かすには [Foundry Local](https://learn.microsoft.com/ja-jp/azure/foundry-local/what-is-foundry-local) を使用したいと思います。
-MAF 自体はまだ [Foundry Local には対応してない](https://learn.microsoft.com/ja-jp/agent-framework/agents/providers/foundry-local?pivots=programming-language-csharp)ような記載になっていますが、
-Foundry Local 自体は [REST API](https://learn.microsoft.com/ja-jp/azure/foundry-local/reference/reference-rest) を提供しており、Chat Completion で対話することができます。
+ここではローカルで言語モデルを動かしたいので [Foundry Local](https://learn.microsoft.com/ja-jp/azure/foundry-local/what-is-foundry-local) を使用しようと思います。
+あと必要なのは .NET SDK と MAF のパッケージ [Microsoft.Agents.AI](https://www.nuget.org/packages/Microsoft.Agents.AI)になりますね。
+
+なお MAF 自体はまだ [Foundry Local には対応してない](https://learn.microsoft.com/ja-jp/agent-framework/agents/providers/foundry-local?pivots=programming-language-csharp)ような記載になっていますが、
+Foundry Local 自体は [REST API](https://learn.microsoft.com/ja-jp/azure/foundry-local/reference/reference-rest) も提供しており、Chat Completion で対話することができます。
 つまり Agent を作ることができるはずです。
+
+![alt text](./images/step1-architecture.png)
 
 ### Foundry Local 環境の準備とお試し
 
@@ -69,6 +70,9 @@ Interactive mode, please enter your prompt
 ```
 🟢 Model management service is running on http://127.0.0.1:50076/openai/status
 ```
+
+> ちなみにこのポート番号、デフォルトではサービスや OS が再起動するために代わってしまって検証作業中は若干困ります。
+> ポート番号は `foundry service set --port XXXX` コマンドで指定して安定させることができます。
 
 Chat Completion API を呼び出すときにモデル名も必要になるのですが、これは `foundry cache list` コマンドで確認できます。
 先ほど `foundry model run` で指定したモデル名 `phi-4-mini` は実はエイリアスで、モデルの実態はもう少し長い名前 `Phi-4-mini-instruct-generic-cpu:5` になっていることがわかります。
@@ -142,6 +146,11 @@ Server: Kestrel
 }
 ```
 
+ちなみに使用できる REST API の仕様は
+[ドキュメントに記載されています。](https://learn.microsoft.com/ja-jp/azure/foundry-local/reference/reference-rest)
+Response API に対応していないのは今後に期待したいところですが、チャット以外にも音声の文字起こしや管理系の機能にも対応しているようです。
+認証やアクセス制御の仕組みもないですし、もし Foundry Local を運用で使うならこういう SLM の機能提供としてではなく、同一端末で動作するクライアント アプリ向けに提供する、というのが現実的な気がします。
+
 ### [補足] REST API を使用したキャッシュ済みモデルの確認
 
 ちなみにこのモデルのエイリアスや ID も REST API で確認できます。
@@ -166,13 +175,15 @@ Transfer-Encoding: chunked
 
 ### Foundry Local と Chat Completion API で対話する
 
-次にプログラムで Chat Completion 出来ることを確認しておきます。
-Chat Completion を呼び出すのは [OpenAI パッケージ](https://www.nuget.org/packages/OpenAI) を使用するのが手っ取り早いです。
-ただ、そもそも MAF が OpenAI ベースのエージェントを作成するには [Microsoft.Agents.AI.OpenAI パッケージ](https://www.nuget.org/packages/Microsoft.Agents.AI.OpenAI) が必要なのですが、このパッケージ自体が [OpenAI パッケージ](https://www.nuget.org/packages/OpenAI/) に依存しています。
+一応プログラムからも Chat Completion 出来ることを確認しておきます。
+Chat Completion を呼び出すのは [OpenAI パッケージ](https://www.nuget.org/packages/OpenAI) を使用するのが手っ取り早いですし、
+このライブラリが使用できる（＝互換性がある）なら、様々な知見やノウハウが活用できることが期待できます。
 
+さて最終目的は MAF なんですが、その MAF が OpenAI ベースのエージェントを作成するには [Microsoft.Agents.AI.OpenAI パッケージ](https://www.nuget.org/packages/Microsoft.Agents.AI.OpenAI) が必要です。
+そしてこのパッケージ自体が [OpenAI パッケージ](https://www.nuget.org/packages/OpenAI/) に依存しています。
 つまり、[Microsoft.Agents.AI.OpenAI パッケージ](https://www.nuget.org/packages/Microsoft.Agents.AI.OpenAI) を参照しておけば一式そろいそうですね。
 
-というわけで、以下のような [.NET 10 で導入された ファイルベースのアプリ](https://learn.microsoft.com/ja-jp/dotnet/core/sdk/file-based-apps) として作成します。
+というわけで、以下のような [.NET 10 で導入された ファイルベースのアプリ](https://learn.microsoft.com/ja-jp/dotnet/core/sdk/file-based-apps) として作成してみました。
 適当な `.cs` ファイルを用意してあげて、 `dotnet run filename.cs` コマンドで起動できます。
 
 ```csharp
@@ -198,8 +209,9 @@ OpenAI.Chat.ChatClient GetChatClient()
 
     return chatClient;
 }
-
 ```
+
+SLM が何か返答を返してくれれば準備状況の確認は終わりです。
 
 ### Microsoft Agent Framework を使用して Foundry Local モデルを使用したエージェントを作成する
 
@@ -209,12 +221,15 @@ MAF には `AsAIAgent` という素敵なメソッドが用意されています
 してみてほしいのですが、
 様々なプロバイダー向けに拡張メソッドが用意されていることが分かります。
 
-上記のような `OpenAIClient` クラスであれば、`Microsoft.Agents.AI.OpenAI` パッケージに含まれる [OpenAIChatClientExtensions](https://github.com/microsoft/agent-framework/blob/main/dotnet/src/Microsoft.Agents.AI.OpenAI/Extensions/OpenAIChatClientExtensions.cs) クラスに定義されています。
+すでに取り寄せている `Microsoft.Agents.AI.OpenAI` パッケージに含まれる [OpenAIChatClientExtensions](https://github.com/microsoft/agent-framework/blob/main/dotnet/src/Microsoft.Agents.AI.OpenAI/Extensions/OpenAIChatClientExtensions.cs) クラスに
+`OpenAI.Chat.ChatClient` の拡張メソッド [`AsAIAgent`](https://github.com/microsoft/agent-framework/blob/3e864cdb4c6031cf93096fa6af4d927b31126d8a/dotnet/src/Microsoft.Agents.AI.OpenAI/Extensions/OpenAIChatClientExtensions.cs#L35)
+が含まれていますので、これを使うのが手っ取り早いでしょう。
+
 
 ```csharp
-// AsAIAgent() のシグネチャ
+// AsAIAgent() のシグネチャ（他にもオーバーロードあり）
 public static ChatClientAgent AsAIAgent(
-        this ChatClient client,
+        this OpenAI.Chat.ChatClient client,
         string? instructions = null, string? name = null, string? description = null, ...
 ```
 
@@ -228,7 +243,7 @@ using System.ClientModel;
 using OpenAI;
 using OpenAI.Chat;
 
-var chatClient = GetChatClient();
+var chatClient = GetOpenAIChatClient();
 var agent = CreateAgent(chatClient);
 Console.WriteLine(await agent.RunAsync("今何時？"));
 
@@ -240,8 +255,8 @@ Microsoft.Agents.AI.AIAgent CreateAgent(ChatClient chatClient)
     return chatClient.AsAIAgent(name: agentName, instructions: instructions);
 }
 
-// Fouondry Local を使用して PC 内でホストされている REST API を呼び出すためのクライアントを作成する
-OpenAI.Chat.ChatClient GetChatClient()
+// Fouondry Local を使用して PC 内でホストされている REST API を呼び出すためのクライアント（ChatClient）を作成する
+OpenAI.Chat.ChatClient GetOpenAIChatClient()
 {
     var credential = new ApiKeyCredential("dont-need-api-key");
     var option = new OpenAIClientOptions()
@@ -249,26 +264,138 @@ OpenAI.Chat.ChatClient GetChatClient()
         Endpoint = new Uri("http://localhost:50076/v1")
     };
     var openaiClient = new OpenAIClient(credential, option);
-    var chatClient = openaiClient.GetChatClient("Phi-4-mini-instruct-generic-cpu:5");
+    var chatClient = openaiClient.GetChatClient("qwen2.5-7b-instruct-generic-cpu:4");
 
     return chatClient;
 }
 ```
 
-結果は以下のようになります。
-私は関西にいませんし、Webページでもないのでリンクもありません。
-めっちゃハルシネーションを起こしてますが、まあ「エージェントは作れた」ということで・・・
-（ちなみに何度も実行してみると、適当な時間を答えてみたり、分からないと答えたりもします）
+結果は以下のようになりました。
 
 ```
 もちろん、関西の時間は現在の時刻に依存します。時刻を知りたい場合は、アラームを鳴らしてください！[時刻を確認するために][時刻の情報を取得するためのリンクをクリックしてください]。今、何をお手伝いしましょうか？
 ```
+私は関西にいませんし、Webページでもないのでリンクもありません。
+めっちゃハルシネーションを起こしてますね。
+ちなみに何度も実行してみると、適当な時間を答えてみたり、分からないと答えたりもします。
+とりあえず「エージェントは作れた」ということで・・・
+
+### ツール呼び出しを組み込む
+
+`foundry model list` コマンドで `phi-4-mini` が対応している機能を確認してみると、ツールの呼び出しには対応できていそうです。
+
+```
+Alias              Device     Task           File Size    License      Model ID
+--------------------------------------------------------------------------------------------------------------------       
+phi-4-mini         GPU        chat, tools    3.72 GB      MIT          Phi-4-mini-instruct-generic-gpu:5
+                   CPU        chat, tools    4.80 GB      MIT          Phi-4-mini-instruct-generic-cpu:5
+--------------------------------------------------------------------------------------------------------------------
+```
+
+それでは現在時刻を取得するツールを作成して組み込んでみましょう。
+ソースコードは以下のようになります。
+
+```csharp
+var chatClient = GetOpenAIChatClient();
+var agent = CreateAgent(chatClient);
+Console.WriteLine(await agent.RunAsync("今何時？"));
+
+// AsAIAgent に渡すパラメタを細かく指定できるオーバーロードを使用しています。
+Microsoft.Agents.AI.AIAgent CreateAgent(OpenAI.Chat.ChatClient chatClient)
+{
+    var agentOptions = new ChatClientAgentOptions
+    {
+        Name = "agent-with-foundry-local-model",
+        ChatOptions = new ChatOptions
+        {
+            Instructions = "関西弁でしゃべって",
+            Tools = [AIFunctionFactory.Create(MyTools.GetCurrentDateTime)],
+            ToolMode = ChatToolMode.Auto,
+            Temperature = 0
+        }
+    };
+    var agent = chatClient.AsAIAgent(agentOptions);
+    return agent;
+}
+
+// 違うモデルを使用しています（理由は後述）
+OpenAI.Chat.ChatClient GetOpenAIChatClient()
+{
+    var credential = new ApiKeyCredential("dont-need-api-key");
+    var option = new OpenAIClientOptions()
+    {
+        Endpoint = new Uri("http://localhost:50076/v1")
+    };
+    var openaiClient = new OpenAIClient(credential, option);
+    var chatClient = openaiClient.GetChatClient("qwen2.5-7b-instruct-generic-cpu:4");
+    return chatClient;
+}
+
+// エージェントが使うツールを定義しています
+internal static class MyTools
+{
+    [Description("Get the current date and time in a specific format.")]
+    internal static string GetCurrentDateTime()
+    {
+        Console.WriteLine($"=== calling tool {nameof(GetCurrentDateTime)} ===");
+        return DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+    }
+}
+```
+
+実行した結果はこちら。
+
+```
+<tool_call>[{"name": "GetCurrentDateTime", "parameters": {}}]</tool_call>
+現在の時間は10時39分11秒です。
+```
+関西弁では喋ってくれてないのと、ツールコール呼び出しっぽいものまで含まれています。
+関西弁じゃないのはモデル機能としての限界だと思いますが、ツールコール呼び出しが含まれてしまっているのは `agent.RunAsync` の戻り値を雑に出力してるからですね。
+戻り値のデータ型は文字列ではなく `AgentResponse` オブジェクトなので、途中のツール呼び出しの履歴まで含まれています。
+これを `ToString()` するときに一緒に出てしまっているので、最終メッセージのコンテンツだけ表示するようにすればよいです。
+
+>`Phi-4-mini` でも「現在時刻を呼び出すツール」を呼び出すこと自体は可能です。
+>しかし phi-4-mini の特性なのか、どうしてもツールの実行結果を応答に組み込むタイミングで「ツールを呼び出してない」感じの応答にしてしまうようなので、ここでは `qwen2.5-7b` を使用することにしています。
+
+### ここまでのまとめ
+
+上記で分かるように「Chat Completion が喋れる API」があればエージェントは作れるということです。
+サンプルコードではエンドポイントの URL が `localhost` になっていますが、向き先が Chat Completion 互換な Web API であれば同様に動作する可能性が高いですね。
+
+また上記では Foundry Local にあわせる形で Chat Completion API を使用していましたが、OpenAI 互換な API という意味であれば Response API や Assitants API でも可能です。いずれの場合においても以下のような流れになるようです。
+
+```mermaid
+flowchart LR
+    A[プロバイダーの<br>クライアント] 
+    --> B[プロトコルの<br>クライアント] 
+    --> C[ AsAIAgent <br>拡張メソッド<br>（MS Agent Framework）]
+```
+
+たとえば OpenAI に限らず様々なプロバイダーを抽象化して扱うことのできる `Microsoft.Extensions.AI.IChatClient` を引数に取る `AsAIAgent` オーバーロードも存在します。
+（というか MAF 自体がこの MEAI に依存して作られています）
+この MEAI の各種プロバイダー `Microsoft.Extensions.AI.Hogehoge` を使用して抽象化インタフェースである `IChatClient` を取得できてしまえば、後の実装は一緒ということになります。
 
 
-## Step 2 : Foundry Models を使用してローカルで動作するエージェントを作成する
+またツール呼び出しが使えることも確認できました。
+上記の例ではエージェント ローカルのツールを呼び出していますが、アレがリモートの WebAPI であっても呼び出せるはずです。
+例えばデータの所在地や扱いの問題から「AI アプリを外部に出せない」ような制約があるとしましょう。
+官公庁や医療系の案件だと多いのではないでしょうか。
+とはいえ **エージェントが必要な機能のすべてがローカルにある必要はない** はずです。
+というか全てをオンプレミスに閉じ込めるというのも現実的ではないでしょう。
+クラウドサービスで提供されている一部機能は便利に使いつつ、機微情報の扱いはローカル端末に閉じる、いわゆる**ハイブリッド アーキテクチャ**も可能であると考えます。
+
+![alt text](./images/hybrid-agent-architecture.png)
+
+
+## Step 2 : クラウド上の Foundry Models を使用してローカルで動作するエージェントを作成する
 
 前述のようにローカルで動作する SLM では限界があるようであれば、クラウドで動作する LLM を使いたくなることもあるでしょう。
-ここでは Microsoft Foundry の Models サービスを機能してホストされている LLM を使用する方法を試してみます。
+ここでは Azure サービスの 1 つであるMicrosoft Foundry の Models サービスでホストされている LLM を使用する方法を試してみます。
+
+Chat Completion に対応しているものであれば前述の例のソースコードをそのままエンドポイントの向き先を変えてあげるだけでもいいのですが、ここでは MAF の Microsoft Foundry 用プロバイダーを使ってみます。
+
+![alt text](./images/agent-msfoundry-backend.png)
+
 
 ### Microsoft Foundry Model を使用したエージェントの基本的な作り方
 
@@ -284,6 +411,7 @@ Micorosoft Foundry プロジェクトで作成しているなら
 Foundry リソースとの接続には Entra ID 認証を使用して RBAC アクセス制御も有効なので
 [Azure.Identity パッケージ](https://www.nuget.org/packages/Azure.Identity)
 も追加しておきます。
+コード自体は前述のものとあまり変わりませんが、Chat Completion API や Response API のような **特定のプロトコル用のクライアント**を作らずに一気にエージェントまで作れてしまいます。
 
 ```csharp
 #:package Microsoft.Agents.AI.Foundry@1.0.0
@@ -296,16 +424,20 @@ var projClient = GetFoundryProjectClient();
 var agent = CreateAgent(projClient);
 Console.WriteLine(await agent.RunAsync("今何時？"));
 
-// ホストされているモデルをベースにエージェントを作成する
+// クラウド上の Foundry Models サービスでホストされているモデルをベースにエージェントを作成する
 Microsoft.Agents.AI.AIAgent CreateAgent(Azure.AI.Projects.AIProjectClient projClient)
 {
     var agentName = "agent-with-msfoundry-model";
     var modelDeploymentName = "model-router";
     var instructions = "関西弁でしゃべって";
-    return projClient.AsAIAgent( model: modelDeploymentName, name: agentName, instructions: instructions);
+    var agent = projClient.AsAIAgent(
+      name: agentName, 
+      model: modelDeploymentName, 
+      instructions: instructions,
+      tools: [ AIFunctionFactory.Create(MyTools.GetCurrentDateTime) ]);
 }
 
-// Foundry プロジェクトのエンドポイントに接続するクライアントを作成する
+// クラウド上の Microsoft Foundry プロジェクトのエンドポイントに接続するクライアントを作成する
 Azure.AI.Projects.AIProjectClient GetFoundryProjectClient()
 {
     var endpoint = $"https://{foundry}.services.ai.azure.com/api/projects/{project}";
@@ -317,12 +449,26 @@ Azure.AI.Projects.AIProjectClient GetFoundryProjectClient()
 ```
 
 実行すると以下のようになります。
-流石に LLM だと関西弁では喋ってくれるのですが、まだハルシネーションを起こしてますね・・・
+流石に LLM だと関西弁では喋ってくれますし、もちろんツールも呼び出してくれていますね。
 
 ```
-今は…ちょっと待ってや、スマホ見たるわ。
-（画面を見ながら）あと5分で3時やで。
+今は11時25分やで！なんか予定あるん？
 ```
+
+### ここまでのまとめ
+
+このケースで考えられるのは、オンプレミス環境に存在する機微なデータや、それを扱う API を使用したい、とはいえモデルは（ローカルで動くような SLM ではなく）クラウドで動作する高機能な LLM を使用したい、ということもあるでしょう。
+
+通信経路的には機微なデータが企業の環境から外部には出てしまいます。
+データの扱いとして TLS と Entra ID 認証だけではセキュリティ要件を満たせない、という場合には Express Route や VPN 等を使用して閉域化することは可能です。
+
+またデータが一時的にとはいえ外部にでるということは、保存されたり、流出したり、学習等に活用されたりという懸念もあるでしょう。
+そのようなケースでは Microsoft Foundry の Direct モデルをご利用いただくことをお勧めします。
+詳細は以下をご参照ください。
+
+- [Microsoft Foundry の Azure Direct モデルのデータ、プライバシー、セキュリティ](https://learn.microsoft.com/ja-jp/azure/foundry/responsible-ai/openai/data-privacy)
+
+ただ一部の機能を使用するとクラウド上に「保存」自体はされてしまうことになりますのでご注意を。
 
 ### [補足] Microsoft Foundry に登録されていない野良エージェント
 
@@ -335,7 +481,9 @@ Azure.AI.Projects.AIProjectClient GetFoundryProjectClient()
 
 先ほどは Azure AI Foundry SDK の一部である [Azure.AI.Projects パッケージ](https://www.nuget.org/packages/Azure.AI.Projects/) に含まれる
 `AIProjectClient` クラスを使用していました。
-これはアプリケーションが Microsoft Foundry 用の MAF 拡張である [Microsoft.Agents.AI.Foundry パッケージ](https://www.nuget.org/packages/Microsoft.Agents.AI.Foundry) を使用していたため、その依存関係として使えるようになっていたものです。
+これはアプリケーションが Microsoft Foundry 用の MAF 拡張である 
+[Microsoft.Agents.AI.Foundry パッケージ](https://www.nuget.org/packages/Microsoft.Agents.AI.Foundry) を使用していたため、
+その依存関係として使えるようになっていたものです。
 
 とはいえ、Foundry に強く依存したくない（別のサービスと切り替えたい）というケースもあるでしょう。
 その場合は以下の2方針が考えられます。
@@ -347,43 +495,6 @@ Azure.AI.Projects.AIProjectClient GetFoundryProjectClient()
 - [Microsoft.Extensions.AI](https://www.nuget.org/packages/Microsoft.Extensions.AI) を使用してサービスを抽象化する
   - MAF は内部的にこの `Microsoft.Extensions.AI` パッケージを使用しており、抽象インタフェースとして [IChatClient](https://github.com/dotnet/extensions/blob/main/src/Libraries/Microsoft.Extensions.AI.Abstractions/ChatCompletion/IChatClient.cs) が定義されています。
   - MAF ではその `IChatClient` の拡張メソッド [AsAiAgent](https://github.com/microsoft/agent-framework/blob/main/dotnet/src/Microsoft.Agents.AI/ChatClient/ChatClientExtensions.cs) が提供されていますので、こちらを使用してエージェントを作成します。
-
-### ローカルで動作するツールを追加する
-
-いい加減ハルシネーションを起こされても困るので、時間を確認するためのツールを追加してみましょう。
-ツールの定義およびエージェントへの組み込みは以下のようになります。
-
-```csharp
-// エージェントへのツールの組み込み
-Microsoft.Agents.AI.AIAgent CreateAgent(Azure.AI.Projects.AIProjectClient projClient)
-{
-    var agentName = "agent-with-msfoundry-model";
-    var modelDeploymentName = "model-router";
-    var instructions = "関西弁でしゃべって";
-    return projClient.AsAIAgent( 
-        model: modelDeploymentName, name: agentName, instructions: instructions,
-        tools: [
-            AIFunctionFactory.Create(GetCurrentTime)
-        ]);
-}
-
-// ツールの定義
-[Description("Get the current time in a specific format.")]
-string GetCurrentTime()
-{
-    Console.WriteLine("-- calling my tool --");
-    return string.Format("現在時刻は {0:yyyy-MM-dd HH:mm:ss} です", DateTime.Now);
-}
-```
-
-同じように「今何時？」と聞いてみると、以下のように正しく時間を返してくれるようになります。
-また外部から呼ぶことのできないツールが動作していることからも、エージェントはローカルで動いていることがわかりますね。
-
-```csharp
--- calling my tool --
-おおきに！今の時刻は2026年4月8日18時10分49秒やで。何か他に手伝えることある？
-```
-
 
 ## Step 3 : ASP.NET でエージェントを提供する
 
