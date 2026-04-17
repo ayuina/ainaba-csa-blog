@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/3.0.1/github-markdown.min.css">
-    <title> ainaba"s blog </title>
+    <title> {{ page.title }} - ainaba's blog </title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
       .markdown-body {
@@ -43,7 +43,7 @@
 
         <!-- ヘッド -->
         <header>
-            <h1 class="header">ainab's blog</h1>
+            <h1 class="header">{{ page.title | default: site.github.repository_name }}</h1>
             <p class="header">{{ site.description | default: site.github.project_tagline }}</p>
         </header>
 
