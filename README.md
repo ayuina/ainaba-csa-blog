@@ -1,9 +1,10 @@
 
 ### FY26
 
+- [Azure の閉域ネットワーク環境における Microsoft Foundry の使い方](./fy26/using-msfoundry-in-private-network/)
+- [Microsoft Agent Frmework で作るエージェントのパターンなど](./fy26/creating-agent-with-framework/)
 - [カスタム エンジン エージェントを Microsoft 365 Copilot で公開する](./fy26/mcs-custom-engine-agent/)
 - [Microsoft Copilot Studio のカスタムエージェントから安全に MCP サーバーを呼び出す最小構成](./fy26/mcs2mcp-basic/)
-- [Microsoft Agent Frmework で作るエージェントのパターンなど](./fy26/creating-agent-with-framework/)
 
 ### FY25 or older
 
