@@ -525,7 +525,7 @@ environment_variables:
 | MY_HARDCODED_PARAM | HOGE |
 | MY_ADDITIONAL_DOTENV | FUGA |
 
-最初に記載したサンプルコードで使用していたのは、モデル名 `AZURE_AI_MODEL_DEPLOYMENT_NAME` 以外には Application Insights の接続文字列 `APPLICATIONINSIGHTS_CONNECTION_STRING` と Foundry プロジェクトのエンドポイント URL `FOUNDRY_PROJECT_ENDPOINT` を使用していました。
+最初に記載したサンプルコードで使用していたのは、モデル名 `AZURE_AI_MODEL_DEPLOYMENT_NAME` 以外に、 Application Insights の接続文字列 `APPLICATIONINSIGHTS_CONNECTION_STRING` と Foundry プロジェクトのエンドポイント URL `FOUNDRY_PROJECT_ENDPOINT` を使用していました。
 
 Hosted Agent としてデプロイすることが間違いないなら、これらの環境変数と名前を合わせておくのが良いとは思います。
 ただ無理して合わせなくても先ほどの例のように自由に設定できますので、一般的なコンテナアプリと同様に「環境変数から値を取る」仕組みにしておけば調整は効くと考えます。
