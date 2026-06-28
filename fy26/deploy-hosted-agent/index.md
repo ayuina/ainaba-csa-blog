@@ -382,6 +382,10 @@ Authorization: Bearer {{$dotenv accessToken}}
 }
 ```
 
+> 二重中括弧が消えてしまう対応として画像で貼っておきます。
+> ![alt text](image.png)
+
+
 ## まとめ
 
 Docs 等を読んでも良くわからず気になっていた「Hosted Agent ってどうやってデプロイするの」という課題に関して、
