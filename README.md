@@ -1,6 +1,7 @@
 
 ### FY26
 
+- [独自実装したエージェントを Foundry にホストしてもらうために](./fy26/deploy-hosted-agent/)
 - [Azure の閉域ネットワーク環境における Microsoft Foundry の使い方](./fy26/using-msfoundry-in-private-network/)
 - [Microsoft Agent Frmework で作るエージェントのパターンなど](./fy26/creating-agent-with-framework/)
 - [カスタム エンジン エージェントを Microsoft 365 Copilot で公開する](./fy26/mcs-custom-engine-agent/)
