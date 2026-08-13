@@ -1,7 +1,3 @@
----
-layout: default
-title: ainaba's blog
----
 
 ### FY26
 
