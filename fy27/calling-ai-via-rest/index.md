@@ -71,7 +71,9 @@ az account get-access-token --scope 'https://ai.azure.com/.default' --query acce
 あとは `Authorization` ヘッダーで以下のようにアクセストークンを設定してやればよいわけです。
 テナント ID とクライアント ID は先ほど控えておいた GUID 値になります。
 
-> {{$aadV2Token scopes:https://ai.azure.com/.default tenantId:your-tenant-id clientId:your-client-id}}
+```json
+{{$aadV2Token scopes:https://ai.azure.com/.default tenantId:your-tenant-id clientId:your-client-id}}
+```
 
 最初はデバイスコード認証のようなログインを求められますので、Foundry Users ロールのユーザーでログインしましょう。
 
@@ -191,7 +193,9 @@ az ad sp create --id '18550318-e177-4205-a743-6816d6fcdc3f'
 
 アクセストークンは以下のように取得できます。
 
-> {{$aadV2Token scopes:https://ai.gateway.azure.com/Data.All tenantId:your-tenant-id clientId:your-client-id}}
+```json
+{{$aadV2Token scopes:https://ai.gateway.azure.com/Data.All tenantId:your-tenant-id clientId:your-client-id}}
+```
 
 ## まとめ
 
