@@ -1,4 +1,8 @@
 
+### FY27
+
+- [REST API で呼び出す Foundry Model と AI Gateway](./fy27/calling-ai-via-rest/)
+
 ### FY26
 
 - [独自実装したエージェントを Foundry にホストしてもらうために](./fy26/deploy-hosted-agent/)
